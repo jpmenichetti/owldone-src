@@ -1,37 +1,20 @@
 
 
-## Add Expiration Date to Feature Flags
+## Fix Snyk Vulnerabilities
 
-### Database Changes
+### Changes
 
-**Migration** — add `expires_at` column to `user_features`:
-```sql
-ALTER TABLE public.user_features
-  ADD COLUMN expires_at timestamptz DEFAULT NULL;
-```
+1. **Upgrade `react-router-dom`** in `package.json` from `^6.30.1` to `^6.30.2` — fixes CVE-2025-68470 (open redirect).
 
-`NULL` = permanent access. A timestamp means access expires after that date.
+2. **Pin lodash resolution** — add an `overrides` field in `package.json` to force transitive lodash to `>=4.17.23`, fixing CVE-2025-13465:
+   ```json
+   "overrides": {
+     "lodash": ">=4.17.23"
+   }
+   ```
 
-### Backend Changes
+3. **CVE-2026-22029** — no action needed, it only affects React Router v7 which this project does not use. If Snyk still flags it, it can be marked as "not applicable."
 
-**`user-api` — `get_features` action**: Filter results to only return features where `enabled = true AND (expires_at IS NULL OR expires_at > now())`.
-
-**`todos-api` — recurrence feature check**: Same condition when validating access.
-
-**`process-recurring-tasks`**: Same condition when checking if a user still has recurrence access.
-
-**`admin-api` — grant/revoke actions**: Accept an optional `expires_at` parameter when granting a feature.
-
-### Frontend Changes
-
-**Admin page** — feature management UI: Add a date picker for setting expiration when granting a feature. Show expiration status in the feature list.
-
-**`useFeatureAccess` hook**: No change needed — the backend already filters expired features, so the client just checks presence.
-
-### Files to Create/Edit
-- **Migration**: add `expires_at` column to `user_features`
-- **Edit**: `supabase/functions/user-api/index.ts` — filter by expiration
-- **Edit**: `supabase/functions/todos-api/index.ts` — check expiration on recurrence
-- **Edit**: `supabase/functions/admin-api/index.ts` — accept `expires_at` on grant
-- **Edit**: `src/pages/Admin.tsx` — date picker for expiration
+### Files Modified
+- `package.json`
 

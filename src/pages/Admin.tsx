@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, RefreshCw, Users, ListTodo, CalendarDays, CalendarRange, CalendarClock, LayoutList, CalendarIcon, Activity } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, RefreshCw, Users, ListTodo, CalendarDays, CalendarRange, CalendarClock, LayoutList, CalendarIcon, Activity, Shield, Trash2, Plus } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -335,7 +336,7 @@ export default function Admin() {
             </Card>
           )}
 
-          {latencyChartData.length > 0 && (
+        {latencyChartData.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">p95 Latency Over Time (ms)</CardTitle>
@@ -364,7 +365,167 @@ export default function Admin() {
             </Card>
           )}
         </div>
+
+        {/* Feature Flags Section */}
+        <FeatureFlagsSection />
       </main>
+    </div>
+  );
+}
+
+function FeatureFlagsSection() {
+  const [targetUserId, setTargetUserId] = useState("");
+  const [featureName, setFeatureName] = useState("recurrence");
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>();
+  const [userFeatures, setUserFeatures] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
+  const fetchUserFeatures = async () => {
+    if (!targetUserId.trim()) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-api", {
+        body: { action: "list_user_features", user_id: targetUserId.trim() },
+      });
+      if (error) throw error;
+      setUserFeatures(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const grantFeature = async () => {
+    if (!targetUserId.trim() || !featureName.trim()) return;
+    try {
+      const body: any = { action: "grant_feature", user_id: targetUserId.trim(), feature: featureName.trim() };
+      if (expiresAt) body.expires_at = expiresAt.toISOString();
+      const { error } = await supabase.functions.invoke("admin-api", { body });
+      if (error) throw error;
+      toast({ title: "Feature granted" });
+      setExpiresAt(undefined);
+      fetchUserFeatures();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const revokeFeature = async (feature: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("admin-api", {
+        body: { action: "revoke_feature", user_id: targetUserId.trim(), feature },
+      });
+      if (error) throw error;
+      toast({ title: "Feature revoked" });
+      fetchUserFeatures();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const isExpired = (expiresAt: string | null) => {
+    if (!expiresAt) return false;
+    return new Date(expiresAt) < new Date();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Shield className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-bold">Feature Flags</h2>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Manage User Features</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-muted-foreground">User ID</label>
+              <Input
+                placeholder="Enter user UUID"
+                value={targetUserId}
+                onChange={(e) => setTargetUserId(e.target.value)}
+              />
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchUserFeatures} disabled={loading || !targetUserId.trim()}>
+              Lookup
+            </Button>
+          </div>
+
+          {userFeatures.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Active Features</p>
+              {userFeatures.map((f: any) => (
+                <div key={f.id} className="flex items-center justify-between p-2 rounded-md border border-border bg-muted/30">
+                  <div>
+                    <span className="font-mono text-sm">{f.feature}</span>
+                    {f.expires_at ? (
+                      <span className={cn("ml-2 text-xs", isExpired(f.expires_at) ? "text-destructive" : "text-muted-foreground")}>
+                        {isExpired(f.expires_at) ? "Expired" : `Expires ${format(new Date(f.expires_at), "MMM d, yyyy")}`}
+                      </span>
+                    ) : (
+                      <span className="ml-2 text-xs text-muted-foreground">Permanent</span>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => revokeFeature(f.feature)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {targetUserId.trim() && (
+            <div className="border-t border-border pt-4 space-y-3">
+              <p className="text-sm font-medium text-muted-foreground">Grant Feature</p>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div>
+                  <label className="text-xs text-muted-foreground">Feature name</label>
+                  <Input
+                    placeholder="recurrence"
+                    value={featureName}
+                    onChange={(e) => setFeatureName(e.target.value)}
+                    className="w-[180px]"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Expires (optional)</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[180px] justify-start text-left font-normal", !expiresAt && "text-muted-foreground")}>
+                        <CalendarIcon className="h-4 w-4 mr-1" />
+                        {expiresAt ? format(expiresAt, "MMM d, yyyy") : "No expiration"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={expiresAt}
+                        onSelect={setExpiresAt}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <Button size="sm" onClick={grantFeature}>
+                  <Plus className="h-4 w-4 mr-1" /> Grant
+                </Button>
+                {expiresAt && (
+                  <Button variant="ghost" size="sm" onClick={() => setExpiresAt(undefined)}>
+                    Clear date
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
