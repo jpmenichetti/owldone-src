@@ -148,6 +148,21 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "get_features": {
+        const { data, error } = await db
+          .from("user_features")
+          .select("feature, enabled, expires_at")
+          .eq("user_id", userId)
+          .eq("enabled", true);
+        if (error) throw error;
+        const now = new Date().toISOString();
+        const active = (data ?? [])
+          .filter((f: any) => !f.expires_at || f.expires_at > now)
+          .map((f: any) => f.feature);
+        resp = json({ features: active });
+        break;
+      }
+
       default:
         resp = json({ error: `Unknown action: ${action}` }, 400);
         logLatency(db, action, performance.now() - t0, 400, userId);

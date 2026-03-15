@@ -130,6 +130,41 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "grant_feature": {
+        const { user_id: targetUserId, feature, expires_at } = params;
+        const row: any = { user_id: targetUserId, feature, enabled: true };
+        if (expires_at) row.expires_at = expires_at;
+        const { error } = await db
+          .from("user_features")
+          .upsert(row, { onConflict: "user_id,feature" });
+        if (error) throw error;
+        resp = json({ success: true });
+        break;
+      }
+
+      case "revoke_feature": {
+        const { user_id: targetUserId, feature } = params;
+        const { error } = await db
+          .from("user_features")
+          .delete()
+          .eq("user_id", targetUserId)
+          .eq("feature", feature);
+        if (error) throw error;
+        resp = json({ success: true });
+        break;
+      }
+
+      case "list_user_features": {
+        const { user_id: targetUserId } = params;
+        const { data, error } = await db
+          .from("user_features")
+          .select("*")
+          .eq("user_id", targetUserId);
+        if (error) throw error;
+        resp = json(data ?? []);
+        break;
+      }
+
       default:
         resp = json({ error: `Unknown action: ${action}` }, 400);
         logLatency(db, action, performance.now() - t0, 400, userId);
