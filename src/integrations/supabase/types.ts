@@ -184,6 +184,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_features: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          expires_at: string | null
+          feature: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          expires_at?: string | null
+          feature: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          expires_at?: string | null
+          feature?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_filters: {
         Row: {
           created_at: string
