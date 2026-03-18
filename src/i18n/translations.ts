@@ -143,6 +143,8 @@ const translations: Record<Language, Record<string, string>> = {
     "features.multiLang.desc": "Available in English, Spanish, French, and German",
     "features.weeklyReport.title": "AI Weekly Reports",
     "features.weeklyReport.desc": "Get an AI-generated summary of your weekly accomplishments",
+    "features.pwa.title": "Install as App",
+    "features.pwa.desc": "Add to your home screen for a native app experience — works offline on any device",
     "features.lifecycle.title": "Smart Lifecycle Rules",
     "features.overdue.title": "Overdue Detection",
     "features.overdue.today": "Today tasks: marked overdue if still incomplete after their creation day",
