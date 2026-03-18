@@ -53,20 +53,21 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = fa
           </Tooltip>
         )}
       </div>
-      {/* Always reserve button row height to prevent layout shift */}
-      <div className={cn("flex gap-2", loading ? "invisible" : showLocked ? "hidden" : "")}>
-        {RECURRENCE_OPTIONS.map((opt) => (
-          <Button
-            key={opt}
-            size="sm"
-            variant={todo.recurrence === opt ? "default" : "outline"}
-            onClick={() => setRecurrence(opt)}
-            className="flex-1"
-          >
-            {t(`detail.${opt}`)}
-          </Button>
-        ))}
-      </div>
+      {recurrenceEnabled && (
+        <div className="flex gap-2">
+          {RECURRENCE_OPTIONS.map((opt) => (
+            <Button
+              key={opt}
+              size="sm"
+              variant={todo.recurrence === opt ? "default" : "outline"}
+              onClick={() => setRecurrence(opt)}
+              className="flex-1"
+            >
+              {t(`detail.${opt}`)}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
