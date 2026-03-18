@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2, Lock } from "lucide-react";
 import { Todo, TodoCategory, CATEGORY_CONFIG, getImageUrl } from "@/hooks/useTodos";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
