@@ -54,6 +54,11 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.uploading": "Uploading...",
     "detail.dropImage": "Drop image to upload",
     "detail.moveTo": "Move to",
+    "detail.recurrence": "Recurrence",
+    "detail.daily": "Daily",
+    "detail.weekly": "Weekly",
+    "detail.monthly": "Monthly",
+    "detail.recurrenceLocked": "Upgrade to enable recurring tasks",
 
     // Archive
     "archive.title": "Archive",
