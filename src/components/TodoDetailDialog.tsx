@@ -144,7 +144,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
           </Tooltip>
         )}
       </div>
-      {!showLocked && (
+      {showButtons && (
         <div className="flex gap-2">
           {RECURRENCE_OPTIONS.map((opt) => (
             <Button
