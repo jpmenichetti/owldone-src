@@ -13,6 +13,7 @@ interface FilterBarProps {
   hasActiveFilters: boolean;
   searchText: string;
   isSaving?: boolean;
+  isSavingTags?: boolean;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
