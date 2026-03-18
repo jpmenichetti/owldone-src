@@ -1,4 +1,4 @@
-import { AlertTriangle, Tag, X, Search } from "lucide-react";
+import { AlertTriangle, Tag, X, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ interface FilterBarProps {
   allTags: string[];
   hasActiveFilters: boolean;
   searchText: string;
+  isSaving?: boolean;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
