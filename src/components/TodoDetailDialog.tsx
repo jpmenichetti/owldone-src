@@ -115,9 +115,9 @@ function computeNextRecurrence(recurrence: string): string {
 function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string }) {
   const { hasFeature, loading } = useFeatureAccess();
 
-  if (readOnly) return null;
+  if (readOnly || loading) return null;
 
-  if (!loading && !hasFeature("recurrence")) {
+  if (!hasFeature("recurrence")) {
     return (
       <div className="space-y-2">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
