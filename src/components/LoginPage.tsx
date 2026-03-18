@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone } from "lucide-react";
-import animLogo from "@/assets/owldone-anim.gif";
+import logo from "@/assets/logo.png";
 import toolkasIcon from "@/assets/toolkas.png";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSelector from "@/components/LanguageSelector";
@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="mx-4 w-full max-w-md space-y-8 text-center">
           <div className="space-y-4">
-            <img src={animLogo} alt="OwlDone" className="mx-auto h-56 w-auto rounded-2xl bg-white p-3" />
+            <img src={logo} alt="OwlDone" className="mx-auto h-32 w-auto" />
             <h1 className="font-display text-5xl font-bold tracking-tight text-foreground">
               Owl<span className="text-accent">Done</span>
             </h1>
