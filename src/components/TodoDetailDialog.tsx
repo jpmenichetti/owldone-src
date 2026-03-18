@@ -1,18 +1,24 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Todo, TodoCategory, CATEGORY_CONFIG, getImageUrl } from "@/hooks/useTodos";
+import { useI18n } from "@/i18n/I18nContext";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
 import { Tables } from "@/integrations/supabase/types";
-import { toast } from "sonner";
-import { useI18n } from "@/i18n/I18nContext";
+
+type TodoImage = Tables<"todo_images">;
+
+const PANEL_MIN_WIDTH = 360;
+const PANEL_MAX_WIDTH = 900;
+const PANEL_DEFAULT_WIDTH = 520;
+const STORAGE_KEY = "todo-detail-panel-width";
 
 const CATEGORY_LABEL_KEYS: Record<TodoCategory, string> = {
   today: "category.today",
@@ -21,74 +27,60 @@ const CATEGORY_LABEL_KEYS: Record<TodoCategory, string> = {
   others: "category.others",
 };
 
-const signedUrlCache = new Map<string, { url: string; expiry: number }>();
-const CACHE_TTL = 50 * 60 * 1000; // 50 min (signed URLs last 60 min)
+const RECURRENCE_OPTIONS = ["daily", "weekly", "monthly"] as const;
 
-function useSignedUrl(path: string) {
-  const [url, setUrl] = useState<string>(() => {
-    const cached = signedUrlCache.get(path);
-    return cached && cached.expiry > Date.now() ? cached.url : "";
-  });
-  useEffect(() => {
-    const cached = signedUrlCache.get(path);
-    if (cached && cached.expiry > Date.now()) {
-      setUrl(cached.url);
-      return;
-    }
-    let cancelled = false;
-    getImageUrl(path).then((u) => {
-      if (!cancelled) {
-        signedUrlCache.set(path, { url: u, expiry: Date.now() + CACHE_TTL });
-        setUrl(u);
-      }
-    });
-    return () => { cancelled = true; };
-  }, [path]);
-  return url;
+function clampWidth(width: number) {
+  return Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, width));
 }
 
-function SignedImage({ img, readOnly, onDelete, onClick }: { img: Tables<"todo_images">; readOnly?: boolean; onDelete: (id: string, path: string) => void; onClick: (src: string, alt: string) => void }) {
-  const url = useSignedUrl(img.storage_path);
-  const [deleting, setDeleting] = useState(false);
-  if (!url) return <div className="rounded-lg border aspect-square bg-muted animate-pulse" />;
+function loadWidth() {
+  if (typeof window === "undefined") return PANEL_DEFAULT_WIDTH;
+  const saved = Number(localStorage.getItem(STORAGE_KEY));
+  return Number.isFinite(saved) ? clampWidth(saved) : PANEL_DEFAULT_WIDTH;
+}
+
+function computeNextRecurrence(recurrence: string): string {
+  const now = new Date();
+  if (recurrence === "daily") now.setDate(now.getDate() + 1);
+  else if (recurrence === "weekly") now.setDate(now.getDate() + 7);
+  else if (recurrence === "monthly") now.setMonth(now.getMonth() + 1);
+  return now.toISOString();
+}
+
+function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; }) {
+  const [src, setSrc] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    getImageUrl(img.storage_path)
+      .then((url) => {
+        if (!cancelled) setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [img.storage_path]);
+
   return (
-    <div className={cn("relative group rounded-lg overflow-hidden border aspect-square cursor-pointer transition-opacity", deleting && "opacity-40 pointer-events-none")} onClick={() => onClick(url, img.file_name)}>
-      <img src={url} alt={img.file_name} className="h-full w-full object-cover" />
-      {deleting && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/40">
-          <Loader2 className="h-5 w-5 animate-spin text-destructive" />
-        </div>
-      )}
-      {!readOnly && !deleting && (
+    <div className="relative rounded-lg overflow-hidden border aspect-square cursor-pointer" onClick={() => src && onClick(src, img.file_name)}>
+      {src ? <img src={src} alt={img.file_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+      {!readOnly && (
         <button
-          onClick={(e) => { e.stopPropagation(); setDeleting(true); onDelete(img.id, img.storage_path); }}
-          className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(img.id, img.storage_path);
+          }}
+          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm hover:text-destructive"
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
     </div>
   );
-}
-
-const STORAGE_KEY = "todo-panel-width";
-const DEFAULT_WIDTH = 480;
-const MIN_WIDTH = 320;
-
-function getMaxWidth() {
-  return Math.floor(window.innerWidth * 0.5);
-}
-
-function clampWidth(w: number) {
-  return Math.max(MIN_WIDTH, Math.min(w, getMaxWidth()));
-}
-
-function loadWidth(): number {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return clampWidth(Number(stored));
-  } catch {}
-  return DEFAULT_WIDTH;
 }
 
 type Props = {
@@ -101,25 +93,14 @@ type Props = {
   isUploading?: boolean;
   readOnly?: boolean;
   allTags?: string[];
+  recurrenceEnabled?: boolean;
+  recurrenceResolved?: boolean;
 };
 
-const RECURRENCE_OPTIONS = ["daily", "weekly", "monthly"] as const;
-
-function computeNextRecurrence(recurrence: string): string {
-  const now = new Date();
-  if (recurrence === "daily") now.setDate(now.getDate() + 1);
-  else if (recurrence === "weekly") now.setDate(now.getDate() + 7);
-  else if (recurrence === "monthly") now.setMonth(now.getMonth() + 1);
-  return now.toISOString();
-}
-
-function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string }) {
-  const { hasFeature, loading } = useFeatureAccess();
-
+function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
   if (readOnly) return null;
 
-  const showLocked = !loading && !hasFeature("recurrence");
-  const showButtons = !loading && hasFeature("recurrence");
+  const showLocked = !recurrenceEnabled;
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
@@ -144,25 +125,26 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
           </Tooltip>
         )}
       </div>
-      {/* Always reserve button row height to prevent layout shift */}
-      <div className={cn("flex gap-2", loading ? "invisible" : showLocked ? "hidden" : "")}>
-        {RECURRENCE_OPTIONS.map((opt) => (
-          <Button
-            key={opt}
-            size="sm"
-            variant={todo.recurrence === opt ? "default" : "outline"}
-            onClick={() => setRecurrence(opt)}
-            className="flex-1"
-          >
-            {t(`detail.${opt}`)}
-          </Button>
-        ))}
-      </div>
+      {recurrenceEnabled && (
+        <div className="flex gap-2">
+          {RECURRENCE_OPTIONS.map((opt) => (
+            <Button
+              key={opt}
+              size="sm"
+              variant={todo.recurrence === opt ? "default" : "outline"}
+              onClick={() => setRecurrence(opt)}
+              className="flex-1"
+            >
+              {t(`detail.${opt}`)}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, readOnly, allTags = [] }: Props) {
+export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
   const { t } = useI18n();
   const [tagInput, setTagInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
@@ -538,7 +520,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             </div>
 
             {/* Recurrence */}
-            <RecurrenceSection todo={todo} onUpdate={onUpdate} readOnly={readOnly} t={t} />
+            <RecurrenceSection todo={todo} onUpdate={onUpdate} readOnly={readOnly} t={t} recurrenceEnabled={recurrenceEnabled} />
 
             {/* Move to */}
             {!readOnly && (
