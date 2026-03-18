@@ -477,6 +477,9 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
               )}
             </div>
 
+            {/* Recurrence */}
+            <RecurrenceSection todo={todo} onUpdate={onUpdate} readOnly={readOnly} t={t} />
+
             {/* Move to */}
             {!readOnly && (
               <div className="space-y-1.5">
