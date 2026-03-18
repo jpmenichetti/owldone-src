@@ -132,8 +132,7 @@ Deno.serve(async (req) => {
 
       case "grant_feature": {
         const { user_id: targetUserId, feature, expires_at } = params;
-        const row: any = { user_id: targetUserId, feature, enabled: true };
-        if (expires_at) row.expires_at = expires_at;
+        const row: any = { user_id: targetUserId, feature, enabled: true, expires_at: expires_at || null };
         const { error } = await db
           .from("user_features")
           .upsert(row, { onConflict: "user_id,feature" });
