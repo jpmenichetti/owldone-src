@@ -143,7 +143,10 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          next_recurrence_at: string | null
           notes: string | null
+          recurrence: string | null
+          recurring_source_id: string | null
           removed: boolean
           removed_at: string | null
           tags: string[] | null
@@ -158,7 +161,10 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          next_recurrence_at?: string | null
           notes?: string | null
+          recurrence?: string | null
+          recurring_source_id?: string | null
           removed?: boolean
           removed_at?: string | null
           tags?: string[] | null
@@ -173,7 +179,10 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          next_recurrence_at?: string | null
           notes?: string | null
+          recurrence?: string | null
+          recurring_source_id?: string | null
           removed?: boolean
           removed_at?: string | null
           tags?: string[] | null
@@ -358,7 +367,10 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          next_recurrence_at: string | null
           notes: string | null
+          recurrence: string | null
+          recurring_source_id: string | null
           removed: boolean
           removed_at: string | null
           tags: string[] | null
