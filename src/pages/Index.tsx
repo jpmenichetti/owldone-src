@@ -223,7 +223,7 @@ const Index = () => {
 
       <TodoDetailDialog
         todo={liveTodo}
-        open={!!selectedTodo}
+        open={!!selectedTodo && !featureAccessLoading}
         onClose={() => setSelectedTodo(null)}
         onUpdate={(id, updates) => updateTodo.mutate({ id, ...updates })}
         onUploadImage={(todoId, file) => uploadImage.mutate({ todoId, file })}
