@@ -6,11 +6,83 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Todo, TodoCategory, CATEGORY_CONFIG, getImageUrl } from "@/hooks/useTodos";
+import { useI18n } from "@/i18n/I18nContext";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
 import { Tables } from "@/integrations/supabase/types";
-...
+
+type TodoImage = Tables<"todo_images">;
+
+const PANEL_MIN_WIDTH = 360;
+const PANEL_MAX_WIDTH = 900;
+const PANEL_DEFAULT_WIDTH = 520;
+const STORAGE_KEY = "todo-detail-panel-width";
+
+const CATEGORY_LABEL_KEYS: Record<TodoCategory, string> = {
+  today: "category.today",
+  this_week: "category.thisWeek",
+  next_week: "category.nextWeek",
+  others: "category.others",
+};
+
+const RECURRENCE_OPTIONS = ["daily", "weekly", "monthly"] as const;
+
+function clampWidth(width: number) {
+  return Math.min(PANEL_MAX_WIDTH, Math.max(PANEL_MIN_WIDTH, width));
+}
+
+function loadWidth() {
+  if (typeof window === "undefined") return PANEL_DEFAULT_WIDTH;
+  const saved = Number(localStorage.getItem(STORAGE_KEY));
+  return Number.isFinite(saved) ? clampWidth(saved) : PANEL_DEFAULT_WIDTH;
+}
+
+function computeNextRecurrence(recurrence: string): string {
+  const now = new Date();
+  if (recurrence === "daily") now.setDate(now.getDate() + 1);
+  else if (recurrence === "weekly") now.setDate(now.getDate() + 7);
+  else if (recurrence === "monthly") now.setMonth(now.getMonth() + 1);
+  return now.toISOString();
+}
+
+function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; }) {
+  const [src, setSrc] = useState<string>("");
+
+  useEffect(() => {
+    let cancelled = false;
+    getImageUrl(img.storage_path)
+      .then((url) => {
+        if (!cancelled) setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [img.storage_path]);
+
+  return (
+    <div className="relative rounded-lg overflow-hidden border aspect-square cursor-pointer" onClick={() => src && onClick(src, img.file_name)}>
+      {src ? <img src={src} alt={img.file_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(img.id, img.storage_path);
+          }}
+          className="absolute right-1 top-1 rounded-full bg-background/90 p-1 text-foreground shadow-sm hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 type Props = {
   todo: Todo | null;
   open: boolean;
@@ -24,7 +96,7 @@ type Props = {
   recurrenceEnabled?: boolean;
   recurrenceResolved?: boolean;
 };
-...
+
 function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
   if (readOnly) return null;
 
