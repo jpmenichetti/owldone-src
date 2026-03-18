@@ -533,6 +533,8 @@ const translations: Record<Language, Record<string, string>> = {
     "features.multiLang.desc": "Verfügbar auf Englisch, Spanisch, Französisch und Deutsch",
     "features.weeklyReport.title": "KI-Wochenberichte",
     "features.weeklyReport.desc": "Erhalte eine KI-generierte Zusammenfassung deiner wöchentlichen Erfolge",
+    "features.pwa.title": "Als App installieren",
+    "features.pwa.desc": "Zum Startbildschirm hinzufügen für ein natives App-Erlebnis — funktioniert offline auf jedem Gerät",
     "features.lifecycle.title": "Intelligente Lebenszyklusregeln",
     "features.overdue.title": "Überfälligkeitserkennung",
     "features.overdue.today": "Heute-Aufgaben werden als überfällig markiert, wenn sie nach ihrem Erstellungstag noch unvollständig sind",

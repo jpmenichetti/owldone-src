@@ -13,7 +13,8 @@ const featureKeys = [
 { icon: FileText, titleKey: "features.details.title", descKey: "features.details.desc" },
 { icon: Download, titleKey: "features.backup.title", descKey: "features.backup.desc" },
 { icon: Globe, titleKey: "features.multiLang.title", descKey: "features.multiLang.desc" },
-{ icon: Sparkles, titleKey: "features.weeklyReport.title", descKey: "features.weeklyReport.desc" }];
+{ icon: Sparkles, titleKey: "features.weeklyReport.title", descKey: "features.weeklyReport.desc" },
+{ icon: Smartphone, titleKey: "features.pwa.title", descKey: "features.pwa.desc" }];
 
 
 export default function LoginPage() {
