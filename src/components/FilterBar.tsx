@@ -1,4 +1,4 @@
-import { AlertTriangle, Tag, X, Search } from "lucide-react";
+import { AlertTriangle, Tag, X, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ interface FilterBarProps {
   allTags: string[];
   hasActiveFilters: boolean;
   searchText: string;
+  isSaving?: boolean;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
@@ -24,6 +25,7 @@ const FilterBar = ({
   allTags,
   hasActiveFilters,
   searchText,
+  isSaving,
   onSearchChange,
   onToggleOverdue,
   onToggleTag,
@@ -46,9 +48,10 @@ const FilterBar = ({
         variant={showOverdue ? "default" : "outline"}
         size="sm"
         onClick={onToggleOverdue}
+        disabled={isSaving}
         className="gap-1.5"
       >
-        <AlertTriangle className="h-3.5 w-3.5" />
+        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />}
         {t("filter.overdue")}
       </Button>
 
