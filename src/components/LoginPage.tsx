@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone } from "lucide-react";
 import logo from "@/assets/logo.png";
+import heroGif from "@/assets/owldone-hero.gif";
 import toolkasIcon from "@/assets/toolkas.png";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSelector from "@/components/LanguageSelector";
@@ -27,8 +28,13 @@ export default function LoginPage() {
         <LanguageSelector />
       </div>
 
+      {/* Hero image */}
+      <div className="flex justify-center pt-12 pb-4">
+        <img src={heroGif} alt="OwlDone animated hero" className="w-full max-w-2xl rounded-2xl" />
+      </div>
+
       {/* Login section */}
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="mx-4 w-full max-w-md space-y-8 text-center">
           <div className="space-y-4">
             <img src={logo} alt="OwlDone" className="mx-auto h-32 w-auto" />
