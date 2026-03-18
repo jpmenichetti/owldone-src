@@ -273,6 +273,8 @@ const translations: Record<Language, Record<string, string>> = {
     "features.multiLang.desc": "Disponible en inglés, español, francés y alemán",
     "features.weeklyReport.title": "Reportes semanales con IA",
     "features.weeklyReport.desc": "Obtén un resumen generado por IA de tus logros semanales",
+    "features.pwa.title": "Instalar como app",
+    "features.pwa.desc": "Añádela a tu pantalla de inicio para una experiencia nativa — funciona sin conexión en cualquier dispositivo",
     "features.lifecycle.title": "Reglas de ciclo de vida inteligentes",
     "features.overdue.title": "Detección de vencimiento",
     "features.overdue.today": "Las tareas de Hoy se marcan como vencidas si siguen incompletas después de su día de creación",
