@@ -38,24 +38,33 @@ export function useFilters() {
   });
 
   const upsertFilters = useMutation({
-    mutationFn: async (filters: UserFilters) => {
-      await invoke({ action: "upsert_filters", ...filters });
+    mutationFn: async (filters: UserFilters & { _source?: "overdue" | "tag" }) => {
+      const { _source, ...rest } = filters;
+      await invoke({ action: "upsert_filters", ...rest });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["user-filters"] }),
+    onMutate: (vars) => {
+      setSavingSource(vars._source ?? null);
+    },
+    onSettled: () => {
+      setSavingSource(null);
+      queryClient.invalidateQueries({ queryKey: ["user-filters"] });
+    },
   });
+
+  const [savingSource, setSavingSource] = useState<"overdue" | "tag" | null>(null);
 
   const showOverdue = filtersQuery.data?.show_overdue ?? false;
   const selectedTags = filtersQuery.data?.selected_tags ?? [];
 
   const toggleOverdue = () => {
-    upsertFilters.mutate({ show_overdue: !showOverdue, selected_tags: selectedTags });
+    upsertFilters.mutate({ show_overdue: !showOverdue, selected_tags: selectedTags, _source: "overdue" });
   };
 
   const toggleTag = (tag: string) => {
     const next = selectedTags.includes(tag)
       ? selectedTags.filter((t) => t !== tag)
       : [...selectedTags, tag];
-    upsertFilters.mutate({ show_overdue: showOverdue, selected_tags: next });
+    upsertFilters.mutate({ show_overdue: showOverdue, selected_tags: next, _source: "tag" });
   };
 
   const clearFilters = () => {
@@ -65,5 +74,5 @@ export function useFilters() {
 
   const hasActiveFilters = showOverdue || selectedTags.length > 0 || searchText.length > 0;
 
-  return { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, isLoading: filtersQuery.isLoading, isSaving: upsertFilters.isPending, searchText, setSearchText, debouncedSearchText };
+  return { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, isLoading: filtersQuery.isLoading, savingSource, searchText, setSearchText, debouncedSearchText };
 }
