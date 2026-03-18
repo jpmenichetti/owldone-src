@@ -65,5 +65,5 @@ export function useFilters() {
 
   const hasActiveFilters = showOverdue || selectedTags.length > 0 || searchText.length > 0;
 
-  return { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, isLoading: filtersQuery.isLoading, searchText, setSearchText, debouncedSearchText };
+  return { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, isLoading: filtersQuery.isLoading, isSaving: upsertFilters.isPending, searchText, setSearchText, debouncedSearchText };
 }
