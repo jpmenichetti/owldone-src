@@ -4,7 +4,7 @@ import { useSimulatedTime } from "@/hooks/useSimulatedTime";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Image, Link2, ChevronRight, GripVertical } from "lucide-react";
+import { Trash2, FileText, Image, Link2, ChevronRight, GripVertical, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playCompletionSound } from "@/lib/sounds";
 import { useDraggable } from "@dnd-kit/core";
@@ -84,6 +84,7 @@ const TodoCard = memo(function TodoCard({ todo, onToggle, onRemove, onOpen, read
 
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>{new Date(todo.created_at).toLocaleDateString()}</span>
+          {todo.recurrence && <Repeat className="h-3 w-3 text-primary" />}
           {overdue && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">{t("todo.overdue")}</Badge>}
           {hasAttachments && (
             <div className="flex items-center gap-1 text-muted-foreground/70">

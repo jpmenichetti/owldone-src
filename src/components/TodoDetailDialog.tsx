@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2 } from "lucide-react";
+import { X, Plus, Upload, Link2, ExternalLink, Trash2, GripVertical, Loader2, Lock } from "lucide-react";
 import { Todo, TodoCategory, CATEGORY_CONFIG, getImageUrl } from "@/hooks/useTodos";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
@@ -100,6 +101,61 @@ type Props = {
   readOnly?: boolean;
   allTags?: string[];
 };
+
+const RECURRENCE_OPTIONS = ["daily", "weekly", "monthly"] as const;
+
+function computeNextRecurrence(recurrence: string): string {
+  const now = new Date();
+  if (recurrence === "daily") now.setDate(now.getDate() + 1);
+  else if (recurrence === "weekly") now.setDate(now.getDate() + 7);
+  else if (recurrence === "monthly") now.setMonth(now.getMonth() + 1);
+  return now.toISOString();
+}
+
+function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string }) {
+  const { hasFeature, loading } = useFeatureAccess();
+
+  if (readOnly) return null;
+
+  if (!loading && !hasFeature("recurrence")) {
+    return (
+      <div className="space-y-2">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" />
+          <span>{t("detail.recurrenceLocked")}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const setRecurrence = (value: string) => {
+    if (todo.recurrence === value) {
+      onUpdate(todo.id, { recurrence: null, next_recurrence_at: null } as any);
+    } else {
+      onUpdate(todo.id, { recurrence: value, next_recurrence_at: computeNextRecurrence(value) } as any);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
+      <div className="flex gap-2">
+        {RECURRENCE_OPTIONS.map((opt) => (
+          <Button
+            key={opt}
+            size="sm"
+            variant={todo.recurrence === opt ? "default" : "outline"}
+            onClick={() => setRecurrence(opt)}
+            className="flex-1"
+          >
+            {t(`detail.${opt}`)}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, readOnly, allTags = [] }: Props) {
   const { t } = useI18n();
@@ -475,6 +531,9 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                 </div>
               )}
             </div>
+
+            {/* Recurrence */}
+            <RecurrenceSection todo={todo} onUpdate={onUpdate} readOnly={readOnly} t={t} />
 
             {/* Move to */}
             {!readOnly && (

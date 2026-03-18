@@ -155,6 +155,9 @@ export function useTodos(searchText = "") {
         removed: false,
         removed_at: null,
         user_id: user?.id ?? "",
+        recurrence: null,
+        next_recurrence_at: null,
+        recurring_source_id: null,
       };
       queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) => [tempTodo, ...(old ?? [])]);
       return { previous };
