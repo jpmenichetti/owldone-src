@@ -118,7 +118,8 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
 
   if (readOnly) return null;
 
-  const showLocked = loading || !hasFeature("recurrence");
+  const showLocked = !loading && !hasFeature("recurrence");
+  const showButtons = !loading && hasFeature("recurrence");
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
