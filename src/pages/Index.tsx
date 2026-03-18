@@ -231,6 +231,8 @@ const Index = () => {
         isUploading={uploadImage.isPending}
         readOnly={dialogReadOnly}
         allTags={allTags}
+        recurrenceEnabled={hasFeature("recurrence")}
+        recurrenceResolved={!featureAccessLoading}
       />
     </div>
   );
