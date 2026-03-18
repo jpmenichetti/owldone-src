@@ -403,6 +403,8 @@ const translations: Record<Language, Record<string, string>> = {
     "features.multiLang.desc": "Disponible en anglais, espagnol, français et allemand",
     "features.weeklyReport.title": "Rapports hebdomadaires IA",
     "features.weeklyReport.desc": "Obtenez un résumé généré par IA de vos accomplissements de la semaine",
+    "features.pwa.title": "Installer comme app",
+    "features.pwa.desc": "Ajoutez à votre écran d'accueil pour une expérience native — fonctionne hors ligne sur tout appareil",
     "features.lifecycle.title": "Règles de cycle de vie intelligentes",
     "features.overdue.title": "Détection de retard",
     "features.overdue.today": "Les tâches d'Aujourd'hui sont marquées en retard si elles sont encore incomplètes après leur jour de création",
