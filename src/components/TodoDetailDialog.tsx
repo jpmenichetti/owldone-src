@@ -25,11 +25,10 @@ type Props = {
   recurrenceResolved?: boolean;
 };
 ...
-function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false, recurrenceResolved = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean; recurrenceResolved?: boolean }) {
+function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
   if (readOnly) return null;
 
-  const showLocked = recurrenceResolved && !recurrenceEnabled;
-  const showButtons = recurrenceResolved && recurrenceEnabled;
+  const showLocked = !recurrenceEnabled;
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
