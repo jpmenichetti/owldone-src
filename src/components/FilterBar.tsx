@@ -25,6 +25,7 @@ const FilterBar = ({
   allTags,
   hasActiveFilters,
   searchText,
+  isSaving,
   onSearchChange,
   onToggleOverdue,
   onToggleTag,
