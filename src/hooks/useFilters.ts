@@ -42,12 +42,22 @@ export function useFilters() {
       const { _source, ...rest } = filters;
       await invoke({ action: "upsert_filters", ...rest });
     },
-    onMutate: (vars) => {
+    onMutate: async (vars) => {
       setSavingSource(vars._source ?? null);
+      await queryClient.cancelQueries({ queryKey: ["user-filters", user?.id] });
+      const previous = queryClient.getQueryData<UserFilters>(["user-filters", user?.id]);
+      const { _source, ...optimistic } = vars;
+      queryClient.setQueryData<UserFilters>(["user-filters", user?.id], optimistic);
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["user-filters", user?.id], context.previous);
+      }
     },
     onSettled: () => {
       setSavingSource(null);
-      queryClient.invalidateQueries({ queryKey: ["user-filters"] });
+      queryClient.invalidateQueries({ queryKey: ["user-filters", user?.id] });
     },
   });
 
