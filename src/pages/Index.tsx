@@ -136,6 +136,7 @@ const Index = () => {
           hasActiveFilters={hasActiveFilters}
           searchText={searchText}
           isSaving={savingSource === "overdue"}
+          isSavingTags={savingSource === "tag"}
           onSearchChange={setSearchText}
           onToggleOverdue={toggleOverdue}
           onToggleTag={toggleTag}
