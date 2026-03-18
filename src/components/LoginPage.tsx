@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone } from "lucide-react";
 import logo from "@/assets/logo.png";
+import heroGif from "@/assets/owldone-hero.gif";
 import toolkasIcon from "@/assets/toolkas.png";
 import { useI18n } from "@/i18n/I18nContext";
 import LanguageSelector from "@/components/LanguageSelector";
