@@ -48,9 +48,10 @@ const FilterBar = ({
         variant={showOverdue ? "default" : "outline"}
         size="sm"
         onClick={onToggleOverdue}
+        disabled={isSaving}
         className="gap-1.5"
       >
-        <AlertTriangle className="h-3.5 w-3.5" />
+        {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <AlertTriangle className="h-3.5 w-3.5" />}
         {t("filter.overdue")}
       </Button>
 
