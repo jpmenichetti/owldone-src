@@ -19,6 +19,7 @@ import TodoCard from "@/components/TodoCard";
 import OnboardingDialog from "@/components/OnboardingDialog";
 import WeeklyReportSection from "@/components/WeeklyReportSection";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 
 const CATEGORIES: TodoCategory[] = ["today", "this_week", "next_week", "others"];
 
@@ -29,6 +30,7 @@ const Index = () => {
   const { t } = useI18n();
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
+  const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
   const [dialogReadOnly, setDialogReadOnly] = useState(false);
   const [activeDragTodo, setActiveDragTodo] = useState<Todo | null>(null);
