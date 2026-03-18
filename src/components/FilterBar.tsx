@@ -60,8 +60,8 @@ const FilterBar = ({
       {allTags.length > 0 && (
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Tag className="h-3.5 w-3.5" />
+            <Button variant="outline" size="sm" className="gap-1.5" disabled={isSavingTags}>
+              {isSavingTags ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />}
               {t("filter.tags")}
               {selectedTags.length > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
