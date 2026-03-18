@@ -135,7 +135,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
         {showLocked && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Lock className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              <Lock className="h-3 w-3 text-muted-foreground cursor-help translate-y-[0.5px]" />
             </TooltipTrigger>
             <TooltipContent side="top">
               <p>{t("detail.recurrenceLocked")}</p>
