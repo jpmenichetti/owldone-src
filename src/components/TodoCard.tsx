@@ -4,7 +4,7 @@ import { useSimulatedTime } from "@/hooks/useSimulatedTime";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2, FileText, Image, Link2, ChevronRight, GripVertical } from "lucide-react";
+import { Trash2, FileText, Image, Link2, ChevronRight, GripVertical, Repeat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playCompletionSound } from "@/lib/sounds";
 import { useDraggable } from "@dnd-kit/core";
