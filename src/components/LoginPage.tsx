@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github } from "lucide-react";
+import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone } from "lucide-react";
 import logo from "@/assets/logo.png";
 import toolkasIcon from "@/assets/toolkas.png";
 import { useI18n } from "@/i18n/I18nContext";
@@ -13,7 +13,8 @@ const featureKeys = [
 { icon: FileText, titleKey: "features.details.title", descKey: "features.details.desc" },
 { icon: Download, titleKey: "features.backup.title", descKey: "features.backup.desc" },
 { icon: Globe, titleKey: "features.multiLang.title", descKey: "features.multiLang.desc" },
-{ icon: Sparkles, titleKey: "features.weeklyReport.title", descKey: "features.weeklyReport.desc" }];
+{ icon: Sparkles, titleKey: "features.weeklyReport.title", descKey: "features.weeklyReport.desc" },
+{ icon: Smartphone, titleKey: "features.pwa.title", descKey: "features.pwa.desc" }];
 
 
 export default function LoginPage() {
