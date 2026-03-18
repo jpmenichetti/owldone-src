@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -129,13 +130,20 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
 
   return (
     <div className="space-y-2">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
-      {showLocked ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground h-9">
-          <Lock className="h-3.5 w-3.5" />
-          <span>{t("detail.recurrenceLocked")}</span>
-        </div>
-      ) : (
+      <div className="flex items-center gap-1.5">
+        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
+        {showLocked && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Lock className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p>{t("detail.recurrenceLocked")}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      {!showLocked && (
         <div className="flex gap-2">
           {RECURRENCE_OPTIONS.map((opt) => (
             <Button
