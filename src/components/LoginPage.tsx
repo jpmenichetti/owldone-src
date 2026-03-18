@@ -31,7 +31,7 @@ export default function LoginPage() {
       <div className="flex min-h-screen items-center justify-center">
         <div className="mx-4 w-full max-w-md space-y-8 text-center">
           <div className="space-y-4">
-            <img src={animLogo} alt="OwlDone" className="mx-auto h-40 w-auto" />
+            <img src={animLogo} alt="OwlDone" className="mx-auto h-40 w-auto rounded-2xl bg-white p-2" />
             <h1 className="font-display text-5xl font-bold tracking-tight text-foreground">
               Owl<span className="text-accent">Done</span>
             </h1>
