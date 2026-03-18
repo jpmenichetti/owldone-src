@@ -118,7 +118,8 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
 
   if (readOnly) return null;
 
-  const showLocked = loading || !hasFeature("recurrence");
+  const showLocked = !loading && !hasFeature("recurrence");
+  const showButtons = !loading && hasFeature("recurrence");
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
@@ -143,7 +144,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t }: { todo: Todo; onUpda
           </Tooltip>
         )}
       </div>
-      {!showLocked && (
+      {showButtons && (
         <div className="flex gap-2">
           {RECURRENCE_OPTIONS.map((opt) => (
             <Button
