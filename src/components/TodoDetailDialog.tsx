@@ -98,9 +98,7 @@ type Props = {
 };
 
 function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
-  if (readOnly) return null;
-
-  const showLocked = !recurrenceEnabled;
+  if (readOnly || !recurrenceEnabled) return null;
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
@@ -114,32 +112,20 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = fa
     <div className="space-y-2">
       <div className="flex items-center gap-1.5">
         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.recurrence")}</label>
-        {showLocked && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Lock className="h-3 w-3 text-muted-foreground cursor-help translate-y-[0.5px]" />
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p>{t("detail.recurrenceLocked")}</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
       </div>
-      {recurrenceEnabled && (
-        <div className="flex gap-2">
-          {RECURRENCE_OPTIONS.map((opt) => (
-            <Button
-              key={opt}
-              size="sm"
-              variant={todo.recurrence === opt ? "default" : "outline"}
-              onClick={() => setRecurrence(opt)}
-              className="flex-1"
-            >
-              {t(`detail.${opt}`)}
-            </Button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-2">
+        {RECURRENCE_OPTIONS.map((opt) => (
+          <Button
+            key={opt}
+            size="sm"
+            variant={todo.recurrence === opt ? "default" : "outline"}
+            onClick={() => setRecurrence(opt)}
+            className="flex-1"
+          >
+            {t(`detail.${opt}`)}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }
