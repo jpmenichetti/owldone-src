@@ -98,9 +98,7 @@ type Props = {
 };
 
 function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
-  if (readOnly) return null;
-
-  const showLocked = !recurrenceEnabled;
+  if (readOnly || !recurrenceEnabled) return null;
 
   const setRecurrence = (value: string) => {
     if (todo.recurrence === value) {
