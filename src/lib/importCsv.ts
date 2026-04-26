@@ -8,13 +8,70 @@ const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const MAX_ROWS = 10_000;
 const MAX_TEXT_LENGTH = 5_000;
+const MAX_TAG_LENGTH = 100;
+const MAX_URL_LENGTH = 2_048;
 const MAX_TAGS = 50;
 const MAX_URLS = 20;
 const URL_PATTERN = /^https?:\/\/.+/i;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+// Block dangerous URL schemes even if disguised with whitespace/case.
+const DANGEROUS_URL_SCHEME = /^(?:javascript|data|vbscript|file|about|blob):/i;
 
-function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "");
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#39;": "'", "&apos;": "'", "&nbsp;": " ",
+};
+
+function decodeEntities(str: string): string {
+  return str
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => {
+      const code = parseInt(h, 16);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : "";
+    })
+    .replace(/&#(\d+);/g, (_, d) => {
+      const code = parseInt(d, 10);
+      return Number.isFinite(code) ? String.fromCodePoint(code) : "";
+    })
+    .replace(/&[a-z]+;|&#39;/gi, (m) => HTML_ENTITIES[m.toLowerCase()] ?? "");
+}
+
+/**
+ * Defense-in-depth sanitizer. React's JSX escaping is the actual XSS boundary,
+ * but we also: strip tags + comments + CDATA, decode entities, drop control
+ * chars, and remove zero-width characters that can hide payloads.
+ */
+function sanitizeText(str: string): string {
+  if (!str) return "";
+  let out = str;
+  // Strip HTML/XML comments and CDATA blocks (which a naive tag stripper misses).
+  out = out.replace(/<!--[\s\S]*?-->/g, "");
+  out = out.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, "");
+  // Strip script/style blocks including their content.
+  out = out.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "");
+  // Strip any remaining tags (handles unterminated tags by being greedy to '>').
+  out = out.replace(/<\/?[a-z!][^>]*>?/gi, "");
+  // Decode entities so encoded payloads can't slip through length checks intact.
+  out = decodeEntities(out);
+  // Run tag strip again post-decode in case entities re-introduced markup.
+  out = out.replace(/<\/?[a-z!][^>]*>?/gi, "");
+  // Remove zero-width and control chars (except tab/newline/carriage return).
+  out = out.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200D\uFEFF]/g, "");
+  return out;
+}
+
+function sanitizeUrl(raw: string): string | null {
+  const cleaned = sanitizeText(raw).trim();
+  if (!cleaned || cleaned.length > MAX_URL_LENGTH) return null;
+  // Reject anything with whitespace embedded (likely smuggling).
+  if (/\s/.test(cleaned)) return null;
+  if (DANGEROUS_URL_SCHEME.test(cleaned)) return null;
+  if (!URL_PATTERN.test(cleaned)) return null;
+  try {
+    const u = new URL(cleaned);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
 }
 
 function parseBoolean(val: string): boolean | null {
@@ -111,7 +168,7 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
       const get = (col: string) => (fields[headerIndex[col]] ?? "").trim();
 
       // Text - required
-      let todoText = stripHtml(get("text")).slice(0, MAX_TEXT_LENGTH);
+      const todoText = sanitizeText(get("text")).slice(0, MAX_TEXT_LENGTH).trim();
       if (!todoText) { skippedCount++; continue; }
 
       // Category
@@ -119,18 +176,27 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
       if (!VALID_CATEGORIES.includes(category)) { skippedCount++; continue; }
 
       // Notes
-      let notes: string | null = stripHtml(get("notes")).slice(0, MAX_TEXT_LENGTH) || null;
+      const notesClean = sanitizeText(get("notes")).slice(0, MAX_TEXT_LENGTH).trim();
+      const notes: string | null = notesClean || null;
 
       // Tags
       const tagsRaw = get("tags");
       const tags = tagsRaw
-        ? tagsRaw.split(";").map((t) => stripHtml(t.trim())).filter(Boolean).slice(0, MAX_TAGS)
+        ? tagsRaw
+            .split(";")
+            .map((t) => sanitizeText(t).trim().slice(0, MAX_TAG_LENGTH))
+            .filter(Boolean)
+            .slice(0, MAX_TAGS)
         : [];
 
-      // URLs
+      // URLs — strict scheme + parse validation; drops javascript:/data:/etc.
       const urlsRaw = get("urls");
       const urls = urlsRaw
-        ? urlsRaw.split(";").map((u) => u.trim()).filter((u) => URL_PATTERN.test(u)).slice(0, MAX_URLS)
+        ? urlsRaw
+            .split(";")
+            .map((u) => sanitizeUrl(u))
+            .filter((u): u is string => u !== null)
+            .slice(0, MAX_URLS)
         : [];
 
       // Booleans
