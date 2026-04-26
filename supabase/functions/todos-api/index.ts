@@ -43,7 +43,7 @@ async function authenticate(req: Request) {
 }
 
 function logLatency(
-  db: SupabaseClient,
+  db: DbClient,
   action: string,
   durationMs: number,
   statusCode: number,
@@ -62,7 +62,7 @@ function logLatency(
 // ============================================================
 // Handler type
 // ============================================================
-type Ctx = { db: SupabaseClient; userId: string; params: any };
+type Ctx = { db: DbClient; userId: string; params: any };
 type Handler = (ctx: Ctx) => Promise<Response>;
 
 // ============================================================
@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
   let action = "unknown";
   let userId: string | undefined;
   let statusCode = 200;
-  let db: SupabaseClient | undefined;
+  let db: DbClient | undefined;
 
   try {
     const auth = await authenticate(req);
