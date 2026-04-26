@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut, Shield, Download, Upload, Bug, Sparkles } from "lucide-react";
+import { LogOut, Shield, Download, Upload, Bug, Crown } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -124,14 +124,14 @@ export default function Navbar() {
                       variant="ghost"
                       size="icon"
                       disabled
-                      aria-label={t("nav.premiumComingSoon") ?? "Coming soon"}
+                      aria-label={t("nav.premiumComingSoon") ?? "Unlock premium features — coming soon"}
                     >
-                      <Sparkles className="h-4 w-4" />
+                      <Crown className="h-4 w-4 text-amber-500" />
                     </Button>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {t("nav.premiumComingSoon") ?? "Coming soon"}
+                  {t("nav.premiumComingSoon") ?? "Unlock premium features — coming soon"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
