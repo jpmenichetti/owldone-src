@@ -294,7 +294,7 @@ const handlers: Record<string, Handler> = {
 // ============================================================
 // Dispatcher
 // ============================================================
-Deno.serve(async (req) => {
+export const handleRequest = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const t0 = performance.now();
