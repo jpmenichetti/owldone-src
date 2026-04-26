@@ -331,4 +331,6 @@ export const handleRequest = async (req: Request): Promise<Response> => {
       logLatency(logger, action, performance.now() - t0, statusCode, userId);
     } catch {}
   }
-});
+};
+
+Deno.serve(handleRequest);
