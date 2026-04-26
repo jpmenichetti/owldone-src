@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-type DbClient = ReturnType<typeof createClient>;
+// deno-lint-ignore no-explicit-any
+type DbClient = any;
 
 // ============================================================
 // Constants + CORS
