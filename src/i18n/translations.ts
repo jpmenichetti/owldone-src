@@ -246,6 +246,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "No se encontraron filas válidas en el archivo CSV.",
     "nav.reportIssue": "Reportar problema",
     "nav.signOut": "Cerrar sesión",
+    "nav.premiumComingSoon": "Próximamente",
 
     "report.title": "Reporte semanal",
     "report.weekOf": "Semana del {start} - {end}",
