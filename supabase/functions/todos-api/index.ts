@@ -68,7 +68,7 @@ type Handler = (ctx: Ctx) => Promise<Response>;
 // ============================================================
 // Operation handlers (one function per action)
 // ============================================================
-async function listTodos({ db, userId }: Ctx): Promise<Response> {
+export async function listTodos({ db, userId }: Ctx): Promise<Response> {
   const { data: todos, error } = await db
     .from("todos")
     .select("*")
@@ -92,7 +92,7 @@ async function listTodos({ db, userId }: Ctx): Promise<Response> {
   );
 }
 
-async function listArchived({ db, userId, params }: Ctx): Promise<Response> {
+export async function listArchived({ db, userId, params }: Ctx): Promise<Response> {
   const { searchText, pageSize, pageOffset } = params;
   if (searchText) {
     const term = String(searchText).trim().toLowerCase();
@@ -129,7 +129,7 @@ async function listArchived({ db, userId, params }: Ctx): Promise<Response> {
   return json(data ?? []);
 }
 
-async function countArchived({ db, userId, params }: Ctx): Promise<Response> {
+export async function countArchived({ db, userId, params }: Ctx): Promise<Response> {
   const { searchText } = params;
   if (searchText) {
     const term = String(searchText).trim().toLowerCase();
@@ -159,7 +159,7 @@ async function countArchived({ db, userId, params }: Ctx): Promise<Response> {
   return json({ count: count ?? 0 });
 }
 
-async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
+export async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { text, category } = params;
   const { data: inserted, error } = await db
     .from("todos")
@@ -170,14 +170,14 @@ async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true, id: inserted.id });
 }
 
-async function updateTodo({ db, userId, params }: Ctx): Promise<Response> {
+export async function updateTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { id, action: _a, ...updates } = params;
   const { error } = await db.from("todos").update(updates).eq("id", id).eq("user_id", userId);
   if (error) throw error;
   return json({ success: true });
 }
 
-async function toggleComplete({ db, userId, params }: Ctx): Promise<Response> {
+export async function toggleComplete({ db, userId, params }: Ctx): Promise<Response> {
   const { id, completed } = params;
   const { error } = await db
     .from("todos")
@@ -188,7 +188,7 @@ async function toggleComplete({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true });
 }
 
-async function removeTodo({ db, userId, params }: Ctx): Promise<Response> {
+export async function removeTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { id } = params;
   const { error } = await db
     .from("todos")
@@ -199,7 +199,7 @@ async function removeTodo({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true });
 }
 
-async function restoreTodo({ db, userId, params }: Ctx): Promise<Response> {
+export async function restoreTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { id } = params;
   const { error } = await db
     .from("todos")
@@ -210,7 +210,7 @@ async function restoreTodo({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true });
 }
 
-async function deletePermanent({ db, userId, params }: Ctx): Promise<Response> {
+export async function deletePermanent({ db, userId, params }: Ctx): Promise<Response> {
   const { ids } = params;
   for (let i = 0; i < ids.length; i += 500) {
     const batch = ids.slice(i, i + 500);
@@ -220,13 +220,13 @@ async function deletePermanent({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true });
 }
 
-async function deleteAll({ db, userId }: Ctx): Promise<Response> {
+export async function deleteAll({ db, userId }: Ctx): Promise<Response> {
   const { error } = await db.from("todos").delete().eq("user_id", userId);
   if (error) throw error;
   return json({ success: true });
 }
 
-async function bulkInsert({ db, userId, params }: Ctx): Promise<Response> {
+export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response> {
   const { todos } = params;
   const rows = todos.map((t: any) => ({ ...t, user_id: userId }));
   for (let i = 0; i < rows.length; i += 500) {
@@ -237,7 +237,7 @@ async function bulkInsert({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true });
 }
 
-async function archiveCompleted({ db, userId, params }: Ctx): Promise<Response> {
+export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Response> {
   const { ids } = params;
   const now = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 500) {
@@ -252,7 +252,7 @@ async function archiveCompleted({ db, userId, params }: Ctx): Promise<Response> 
   return json({ success: true });
 }
 
-async function autoTransitions({ db, userId, params }: Ctx): Promise<Response> {
+export async function autoTransitions({ db, userId, params }: Ctx): Promise<Response> {
   const { idsToArchive, idsToMoveToThisWeek } = params;
   const now = new Date().toISOString();
   if (idsToArchive?.length > 0) {
