@@ -113,7 +113,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "No valid rows found in the CSV file.",
     "nav.reportIssue": "Report Issue",
     "nav.signOut": "Sign Out",
-    "nav.premiumComingSoon": "Coming soon",
+    "nav.premiumComingSoon": "Unlock premium features — coming soon",
 
     // Weekly report
     "report.title": "Weekly Report",
@@ -246,7 +246,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "No se encontraron filas válidas en el archivo CSV.",
     "nav.reportIssue": "Reportar problema",
     "nav.signOut": "Cerrar sesión",
-    "nav.premiumComingSoon": "Próximamente",
+    "nav.premiumComingSoon": "Desbloquear funciones premium — próximamente",
 
     "report.title": "Reporte semanal",
     "report.weekOf": "Semana del {start} - {end}",
@@ -377,7 +377,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "Aucune ligne valide trouvée dans le fichier CSV.",
     "nav.reportIssue": "Signaler un problème",
     "nav.signOut": "Se déconnecter",
-    "nav.premiumComingSoon": "Bientôt disponible",
+    "nav.premiumComingSoon": "Débloquer les fonctionnalités premium — bientôt disponible",
 
     "report.title": "Rapport hebdomadaire",
     "report.weekOf": "Semaine du {start} - {end}",
@@ -508,7 +508,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "Keine gültigen Zeilen in der CSV-Datei gefunden.",
     "nav.reportIssue": "Problem melden",
     "nav.signOut": "Abmelden",
-    "nav.premiumComingSoon": "Demnächst verfügbar",
+    "nav.premiumComingSoon": "Premium-Funktionen freischalten — demnächst verfügbar",
 
     "report.title": "Wochenbericht",
     "report.weekOf": "Woche vom {start} - {end}",
