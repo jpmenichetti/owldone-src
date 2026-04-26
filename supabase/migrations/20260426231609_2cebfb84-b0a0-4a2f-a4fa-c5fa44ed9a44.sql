@@ -1,0 +1,1 @@
+DELETE FROM public.todos WHERE user_id='1a923f8b-ff3a-4413-bf2d-f9730f323e83' AND text LIKE '[TEST%';
