@@ -168,7 +168,7 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
       const get = (col: string) => (fields[headerIndex[col]] ?? "").trim();
 
       // Text - required
-      let todoText = stripHtml(get("text")).slice(0, MAX_TEXT_LENGTH);
+      const todoText = sanitizeText(get("text")).slice(0, MAX_TEXT_LENGTH).trim();
       if (!todoText) { skippedCount++; continue; }
 
       // Category
@@ -176,18 +176,27 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
       if (!VALID_CATEGORIES.includes(category)) { skippedCount++; continue; }
 
       // Notes
-      let notes: string | null = stripHtml(get("notes")).slice(0, MAX_TEXT_LENGTH) || null;
+      const notesClean = sanitizeText(get("notes")).slice(0, MAX_TEXT_LENGTH).trim();
+      const notes: string | null = notesClean || null;
 
       // Tags
       const tagsRaw = get("tags");
       const tags = tagsRaw
-        ? tagsRaw.split(";").map((t) => stripHtml(t.trim())).filter(Boolean).slice(0, MAX_TAGS)
+        ? tagsRaw
+            .split(";")
+            .map((t) => sanitizeText(t).trim().slice(0, MAX_TAG_LENGTH))
+            .filter(Boolean)
+            .slice(0, MAX_TAGS)
         : [];
 
-      // URLs
+      // URLs — strict scheme + parse validation; drops javascript:/data:/etc.
       const urlsRaw = get("urls");
       const urls = urlsRaw
-        ? urlsRaw.split(";").map((u) => u.trim()).filter((u) => URL_PATTERN.test(u)).slice(0, MAX_URLS)
+        ? urlsRaw
+            .split(";")
+            .map((u) => sanitizeUrl(u))
+            .filter((u): u is string => u !== null)
+            .slice(0, MAX_URLS)
         : [];
 
       // Booleans
