@@ -116,6 +116,25 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-1">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span tabIndex={0}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled
+                      aria-label={t("nav.premiumComingSoon") ?? "Coming soon"}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("nav.premiumComingSoon") ?? "Coming soon"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             {isAdmin && (
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/admin" className="flex items-center gap-1">
