@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SAMPLE_RATE = 0.2;
 const FUNCTION_NAME = "admin-api";
@@ -9,7 +9,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function json(data: unknown, status = 200) {
+export type DbClient = SupabaseClient;
+export type Ctx = { db: DbClient; userId: string; params: any };
+export type Handler = (ctx: Ctx) => Promise<Response>;
+
+export function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -41,10 +45,10 @@ async function authenticateAdmin(req: Request) {
     .maybeSingle();
   if (!roleData) throw { status: 403, message: "Forbidden" };
 
-  return { userId, db: serviceClient };
+  return { userId, db: serviceClient as DbClient };
 }
 
-function logLatency(db: ReturnType<typeof createClient>, action: string, durationMs: number, statusCode: number, userId?: string) {
+function logLatency(db: DbClient, action: string, durationMs: number, statusCode: number, userId?: string) {
   if (Math.random() >= SAMPLE_RATE) return;
   db.from("api_latency_logs").insert({
     function_name: FUNCTION_NAME,
@@ -55,7 +59,104 @@ function logLatency(db: ReturnType<typeof createClient>, action: string, duratio
   }).then();
 }
 
-Deno.serve(async (req) => {
+// ---------- Handlers ----------
+
+export const getSummary: Handler = async ({ db }) => {
+  const { data, error } = await db
+    .from("admin_stats_summary")
+    .select("*")
+    .eq("id", 1)
+    .single();
+  if (error) throw error;
+  return json(data);
+};
+
+export const getDaily: Handler = async ({ db }) => {
+  const { data, error } = await db
+    .from("admin_stats_daily")
+    .select("*")
+    .order("stat_date", { ascending: true });
+  if (error) throw error;
+  return json(data);
+};
+
+export const refresh: Handler = async ({ db }) => {
+  const { error } = await db.rpc("compute_admin_stats");
+  if (error) throw error;
+  return json({ success: true });
+};
+
+export const getLatencyStats: Handler = async ({ db, params }) => {
+  const { date_from, date_to } = params;
+  const { data, error } = await db.rpc("get_latency_stats", {
+    p_date_from: date_from,
+    p_date_to: date_to,
+  });
+  if (error) throw error;
+  return json(data);
+};
+
+export const getLatencyTimeseries: Handler = async ({ db, params }) => {
+  const { date_from, date_to, granularity } = params;
+  const { data, error } = await db.rpc("get_latency_timeseries", {
+    p_date_from: date_from,
+    p_date_to: date_to,
+    p_granularity: granularity || "daily",
+  });
+  if (error) throw error;
+  return json(data);
+};
+
+export const purgeLatencyLogs: Handler = async ({ db }) => {
+  const { error } = await db.rpc("purge_old_latency_logs");
+  if (error) throw error;
+  return json({ success: true });
+};
+
+export const grantFeature: Handler = async ({ db, params }) => {
+  const { user_id: targetUserId, feature, expires_at } = params;
+  const row: any = { user_id: targetUserId, feature, enabled: true, expires_at: expires_at || null };
+  const { error } = await db
+    .from("user_features")
+    .upsert(row, { onConflict: "user_id,feature" });
+  if (error) throw error;
+  return json({ success: true });
+};
+
+export const revokeFeature: Handler = async ({ db, params }) => {
+  const { user_id: targetUserId, feature } = params;
+  const { error } = await db
+    .from("user_features")
+    .delete()
+    .eq("user_id", targetUserId)
+    .eq("feature", feature);
+  if (error) throw error;
+  return json({ success: true });
+};
+
+export const listUserFeatures: Handler = async ({ db, params }) => {
+  const { user_id: targetUserId } = params;
+  const { data, error } = await db
+    .from("user_features")
+    .select("*")
+    .eq("user_id", targetUserId);
+  if (error) throw error;
+  return json(data ?? []);
+};
+
+export const handlers: Record<string, Handler> = {
+  get_summary: getSummary,
+  get_daily: getDaily,
+  refresh,
+  get_latency_stats: getLatencyStats,
+  get_latency_timeseries: getLatencyTimeseries,
+  purge_latency_logs: purgeLatencyLogs,
+  grant_feature: grantFeature,
+  revoke_feature: revokeFeature,
+  list_user_features: listUserFeatures,
+};
+
+export const handleRequest = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   const t0 = performance.now();
   let action = "unknown";
@@ -67,117 +168,25 @@ Deno.serve(async (req) => {
     const { db } = auth;
     const body = await req.json();
     action = body.action;
-    const params = body;
 
-    let resp: Response;
-
-    switch (action) {
-      case "get_summary": {
-        const { data, error } = await db
-          .from("admin_stats_summary")
-          .select("*")
-          .eq("id", 1)
-          .single();
-        if (error) throw error;
-        resp = json(data);
-        break;
-      }
-
-      case "get_daily": {
-        const { data, error } = await db
-          .from("admin_stats_daily")
-          .select("*")
-          .order("stat_date", { ascending: true });
-        if (error) throw error;
-        resp = json(data);
-        break;
-      }
-
-      case "refresh": {
-        const { error } = await db.rpc("compute_admin_stats");
-        if (error) throw error;
-        resp = json({ success: true });
-        break;
-      }
-
-      case "get_latency_stats": {
-        const { date_from, date_to } = params;
-        const { data, error } = await db.rpc("get_latency_stats", {
-          p_date_from: date_from,
-          p_date_to: date_to,
-        });
-        if (error) throw error;
-        resp = json(data);
-        break;
-      }
-
-      case "get_latency_timeseries": {
-        const { date_from, date_to, granularity } = params;
-        const { data, error } = await db.rpc("get_latency_timeseries", {
-          p_date_from: date_from,
-          p_date_to: date_to,
-          p_granularity: granularity || "daily",
-        });
-        if (error) throw error;
-        resp = json(data);
-        break;
-      }
-
-      case "purge_latency_logs": {
-        const { error } = await db.rpc("purge_old_latency_logs");
-        if (error) throw error;
-        resp = json({ success: true });
-        break;
-      }
-
-      case "grant_feature": {
-        const { user_id: targetUserId, feature, expires_at } = params;
-        const row: any = { user_id: targetUserId, feature, enabled: true, expires_at: expires_at || null };
-        const { error } = await db
-          .from("user_features")
-          .upsert(row, { onConflict: "user_id,feature" });
-        if (error) throw error;
-        resp = json({ success: true });
-        break;
-      }
-
-      case "revoke_feature": {
-        const { user_id: targetUserId, feature } = params;
-        const { error } = await db
-          .from("user_features")
-          .delete()
-          .eq("user_id", targetUserId)
-          .eq("feature", feature);
-        if (error) throw error;
-        resp = json({ success: true });
-        break;
-      }
-
-      case "list_user_features": {
-        const { user_id: targetUserId } = params;
-        const { data, error } = await db
-          .from("user_features")
-          .select("*")
-          .eq("user_id", targetUserId);
-        if (error) throw error;
-        resp = json(data ?? []);
-        break;
-      }
-
-      default:
-        resp = json({ error: `Unknown action: ${action}` }, 400);
-        logLatency(db, action, performance.now() - t0, 400, userId);
-        return resp;
+    const handler = handlers[action];
+    if (!handler) {
+      const resp = json({ error: `Unknown action: ${action}` }, 400);
+      logLatency(db, action, performance.now() - t0, 400, userId);
+      return resp;
     }
 
-    logLatency(db, action, performance.now() - t0, 200, userId);
+    const resp = await handler({ db, userId, params: body });
+    logLatency(db, action, performance.now() - t0, resp.status, userId);
     return resp;
   } catch (e: any) {
     const status = e.status || 500;
     try {
-      const sc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const sc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!) as DbClient;
       logLatency(sc, action, performance.now() - t0, status, userId);
     } catch {}
     return json({ error: e.message || "Internal error" }, status);
   }
-});
+};
+
+Deno.serve(handleRequest);
