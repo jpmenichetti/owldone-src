@@ -377,6 +377,7 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "Aucune ligne valide trouvée dans le fichier CSV.",
     "nav.reportIssue": "Signaler un problème",
     "nav.signOut": "Se déconnecter",
+    "nav.premiumComingSoon": "Bientôt disponible",
 
     "report.title": "Rapport hebdomadaire",
     "report.weekOf": "Semaine du {start} - {end}",
