@@ -97,16 +97,40 @@ export const uploadImage: Handler = async ({ db, userId, params }) => {
   return json({ success: true });
 };
 
-export const deleteImage: Handler = async ({ db, params }) => {
+export const deleteImage: Handler = async ({ db, userId, params }) => {
   const { id, storagePath } = params;
+  if (!id || !storagePath) return json({ error: "Missing id or storagePath" }, 400);
+
+  // Verify ownership: image must belong to a todo owned by the user
+  const { data: img } = await db
+    .from("todo_images")
+    .select("id, storage_path, todos!inner(user_id)")
+    .eq("id", id)
+    .eq("storage_path", storagePath)
+    .eq("todos.user_id", userId)
+    .maybeSingle();
+  if (!img) return json({ error: "Not found" }, 404);
+
   await db.storage.from("todo-images").remove([storagePath]);
   const { error } = await db.from("todo_images").delete().eq("id", id);
   if (error) throw error;
   return json({ success: true });
 };
 
-export const getImageUrl: Handler = async ({ db, params }) => {
+export const getImageUrl: Handler = async ({ db, userId, params }) => {
   const { storagePath } = params;
+  if (!storagePath) return json({ error: "Missing storagePath" }, 400);
+
+  // Verify ownership: storage paths are scoped as `${userId}/${todoId}/...`
+  // Confirm via DB join to prevent path-guessing attacks.
+  const { data: img } = await db
+    .from("todo_images")
+    .select("id, todos!inner(user_id)")
+    .eq("storage_path", storagePath)
+    .eq("todos.user_id", userId)
+    .maybeSingle();
+  if (!img) return json({ error: "Not found" }, 404);
+
   const { data, error } = await db.storage
     .from("todo-images")
     .createSignedUrl(storagePath, 3600);
