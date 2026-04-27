@@ -51,6 +51,25 @@ serve(async (req) => {
     }
 
     if (body.mode === "cron") {
+      // Cron mode: require shared secret OR service-role bearer token.
+      // Never trust caller-supplied body fields alone for auth-level selection.
+      const cronSecret = Deno.env.get("CRON_SECRET");
+      const providedSecret = req.headers.get("x-cron-secret");
+      const bearer = authHeader?.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "")
+        : null;
+
+      const secretOk =
+        !!cronSecret && !!providedSecret && providedSecret === cronSecret;
+      const serviceRoleOk = !!bearer && bearer === serviceRoleKey;
+
+      if (!secretOk && !serviceRoleOk) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Cron mode: generate for all users who have completed todos this week
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: users, error: usersErr } = await adminClient
