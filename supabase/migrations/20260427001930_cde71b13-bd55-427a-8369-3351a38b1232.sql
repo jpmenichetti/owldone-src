@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Authenticated users can upload todo images" ON storage.objects;
