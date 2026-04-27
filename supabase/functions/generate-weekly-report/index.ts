@@ -51,17 +51,22 @@ serve(async (req) => {
     }
 
     if (body.mode === "cron") {
-      // Cron mode: require shared secret OR service-role bearer token.
-      // Never trust caller-supplied body fields alone for auth-level selection.
-      const cronSecret = Deno.env.get("CRON_SECRET");
+      // Cron mode: require shared secret (validated against vault) OR
+      // service-role bearer token. Never trust caller-supplied body fields alone.
       const providedSecret = req.headers.get("x-cron-secret");
       const bearer = authHeader?.startsWith("Bearer ")
         ? authHeader.replace("Bearer ", "")
         : null;
 
-      const secretOk =
-        !!cronSecret && !!providedSecret && providedSecret === cronSecret;
       const serviceRoleOk = !!bearer && bearer === serviceRoleKey;
+      let secretOk = false;
+      if (providedSecret) {
+        const verifyClient = createClient(supabaseUrl, serviceRoleKey);
+        const { data, error } = await verifyClient.rpc("verify_cron_secret", {
+          _provided: providedSecret,
+        });
+        if (!error && data === true) secretOk = true;
+      }
 
       if (!secretOk && !serviceRoleOk) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {

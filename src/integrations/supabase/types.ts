@@ -386,6 +386,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      verify_cron_secret: { Args: { _provided: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
