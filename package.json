@@ -92,6 +92,11 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "lodash": ">=4.17.23"
+    "lodash": ">=4.17.23",
+    "vite-plugin-pwa>workbox-build>source-map": "^0.7.4",
+    "vite-plugin-pwa>workbox-build>tempy": "^3.1.0",
+    "vite-plugin-pwa>workbox-build>@apideck/better-ajv-errors>jsonpointer": "^5.0.1",
+    "tr46": "^5.0.0",
+    "whatwg-url": "^14.0.0"
   }
 }
