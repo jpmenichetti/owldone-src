@@ -338,7 +338,12 @@ Deno.test("deleteImage removes storage object then deletes db row", async () => 
 Deno.test("deleteImage propagates db delete errors", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    { todo_images: () => ({ data: null, error: new Error("delete boom") }) },
+    {
+      todo_images: (call) =>
+        call.op === "delete"
+          ? { data: null, error: new Error("delete boom") }
+          : { data: { id: "img-1", storage_path: "p" }, error: null },
+    },
     { "todo-images": { remove: () => ({ data: null, error: null }) } },
     calls,
   );
