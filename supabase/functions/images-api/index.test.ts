@@ -313,7 +313,7 @@ Deno.test("uploadImage propagates db insert errors", async () => {
 Deno.test("deleteImage removes storage object then deletes db row", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    { todo_images: () => ({ data: null, error: null }) },
+    { todo_images: () => ({ data: { id: "img-1", storage_path: "user-123/todo-abc/file.png" }, error: null }) },
     { "todo-images": { remove: () => ({ data: null, error: null }) } },
     calls,
   );
@@ -338,7 +338,12 @@ Deno.test("deleteImage removes storage object then deletes db row", async () => 
 Deno.test("deleteImage propagates db delete errors", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    { todo_images: () => ({ data: null, error: new Error("delete boom") }) },
+    {
+      todo_images: (call) =>
+        call.op === "delete"
+          ? { data: null, error: new Error("delete boom") }
+          : { data: { id: "img-1", storage_path: "p" }, error: null },
+    },
     { "todo-images": { remove: () => ({ data: null, error: null }) } },
     calls,
   );
@@ -360,7 +365,7 @@ Deno.test("deleteImage propagates db delete errors", async () => {
 Deno.test("getImageUrl returns signed URL for storage path", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    {},
+    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
     {
       "todo-images": {
         createSignedUrl: (path, expires) => {
@@ -386,7 +391,7 @@ Deno.test("getImageUrl returns signed URL for storage path", async () => {
 Deno.test("getImageUrl propagates signing errors", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    {},
+    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
     { "todo-images": { createSignedUrl: () => ({ data: null, error: new Error("sign boom") }) } },
     calls,
   );
