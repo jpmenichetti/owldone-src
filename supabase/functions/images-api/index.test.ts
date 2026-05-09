@@ -313,7 +313,7 @@ Deno.test("uploadImage propagates db insert errors", async () => {
 Deno.test("deleteImage removes storage object then deletes db row", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    { todo_images: () => ({ data: null, error: null }) },
+    { todo_images: () => ({ data: { id: "img-1", storage_path: "user-123/todo-abc/file.png" }, error: null }) },
     { "todo-images": { remove: () => ({ data: null, error: null }) } },
     calls,
   );
