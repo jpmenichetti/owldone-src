@@ -365,7 +365,7 @@ Deno.test("deleteImage propagates db delete errors", async () => {
 Deno.test("getImageUrl returns signed URL for storage path", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    {},
+    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
     {
       "todo-images": {
         createSignedUrl: (path, expires) => {
@@ -391,7 +391,7 @@ Deno.test("getImageUrl returns signed URL for storage path", async () => {
 Deno.test("getImageUrl propagates signing errors", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    {},
+    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
     { "todo-images": { createSignedUrl: () => ({ data: null, error: new Error("sign boom") }) } },
     calls,
   );
