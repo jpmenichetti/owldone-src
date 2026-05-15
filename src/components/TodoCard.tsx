@@ -60,6 +60,7 @@ const TodoCard = memo(function TodoCard({ todo, onToggle, onRemove, onOpen, read
       {!readOnly && (
         <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
           <Checkbox
+            aria-label={`Mark "${todo.text}" as ${todo.completed ? "incomplete" : "completed"}`}
             checked={todo.completed}
             onCheckedChange={(checked) => {
               if (checked) playCompletionSound();
@@ -98,11 +99,11 @@ const TodoCard = memo(function TodoCard({ todo, onToggle, onRemove, onOpen, read
 
       <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {!readOnly && (
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); onRemove(todo.id); }}>
+          <Button aria-label={`Delete task: ${todo.text}`} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); onRemove(todo.id); }}>
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={(e) => { e.stopPropagation(); onOpen(todo); }}>
+        <Button aria-label={`Open task details: ${todo.text}`} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={(e) => { e.stopPropagation(); onOpen(todo); }}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>

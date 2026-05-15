@@ -59,7 +59,7 @@ export default function CategorySection({ category, todos, onAdd, onToggle, onRe
         </span>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" aria-label={`About ${label} category`} className="h-6 w-6 text-muted-foreground hover:text-foreground">
               <Info className="h-3.5 w-3.5" />
             </Button>
           </PopoverTrigger>

@@ -32,6 +32,7 @@ export default function AddTodo({ category, onAdd, isPending }: Props) {
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
       <Input
+        aria-label={t("addTodo.placeholder", { category: t(CATEGORY_LABEL_KEYS[category]) })}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={t("addTodo.placeholder", { category: t(CATEGORY_LABEL_KEYS[category]) })}
@@ -40,6 +41,7 @@ export default function AddTodo({ category, onAdd, isPending }: Props) {
       <Button
         type="submit"
         size="icon"
+        aria-label={`Add task to ${t(CATEGORY_LABEL_KEYS[category])}`}
         disabled={!text.trim()}
         className="shrink-0"
         style={{ backgroundColor: `hsl(var(--category-${category === "this_week" ? "week" : category === "next_week" ? "next" : category}))` }}

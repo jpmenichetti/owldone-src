@@ -34,6 +34,7 @@ export default function LoginPage() {
             <img src={logo} alt="OwlDone" className="mx-auto h-32 w-auto" />
             <h1 className="font-display text-5xl font-bold tracking-tight text-foreground">
               Owl<span className="text-accent">Done</span>
+              <span className="sr-only"> — Smart Task Management</span>
             </h1>
             <p className="text-lg text-muted-foreground">{t("login.headline")}</p>
           </div>

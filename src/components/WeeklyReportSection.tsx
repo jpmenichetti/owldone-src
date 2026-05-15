@@ -26,6 +26,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <Button
       variant="ghost"
       size="icon"
+      aria-label={copied ? "Copied report to clipboard" : "Copy report to clipboard"}
       className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
       onClick={handleCopy}
     >
