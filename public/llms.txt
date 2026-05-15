@@ -1,0 +1,9 @@
+# OwlDone
+
+> Smart personal task management with categories, multimedia notes, and lifecycle automation.
+
+OwlDone is a personal productivity app that organizes tasks into time-based categories (Today, This Week, Next Week, Others) with automatic lifecycle rules, overdue detection, weekly AI summaries, recurring tasks, tags, notes, image attachments, and CSV backup/restore. Authentication is via Google OAuth.
+
+## Pages
+
+- [Home](/): Sign in and manage your tasks across categories.
