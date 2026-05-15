@@ -226,6 +226,7 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={t("archive.restore")}
                           className="h-7 w-7 text-muted-foreground hover:text-foreground"
                           onClick={(e) => { e.stopPropagation(); onRestore(todo.id); }}
                           title={t("archive.restore")}
@@ -237,6 +238,7 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label={t("archive.permanentDelete")}
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
                           onClick={(e) => handleDeleteSingle(e, todo.id)}
                           title={t("archive.permanentDelete")}
