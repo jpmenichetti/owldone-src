@@ -104,6 +104,57 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_visits: {
+        Row: {
+          created_at: string
+          gclid: string | null
+          id: string
+          landing_path: string
+          language: string | null
+          referrer: string | null
+          source: string
+          user_agent: string | null
+          user_id: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
+        }
+        Insert: {
+          created_at?: string
+          gclid?: string | null
+          id?: string
+          landing_path?: string
+          language?: string | null
+          referrer?: string | null
+          source: string
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Update: {
+          created_at?: string
+          gclid?: string | null
+          id?: string
+          landing_path?: string
+          language?: string | null
+          referrer?: string | null
+          source?: string
+          user_agent?: string | null
+          user_id?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
+        }
+        Relationships: []
+      }
       todo_images: {
         Row: {
           file_name: string
@@ -329,6 +380,14 @@ export type Database = {
     Functions: {
       compute_admin_stats: { Args: never; Returns: undefined }
       count_archived_todos: { Args: { search_term: string }; Returns: number }
+      get_landing_visit_stats: {
+        Args: { p_date_from: string; p_date_to: string }
+        Returns: {
+          source: string
+          unique_campaigns: number
+          visit_count: number
+        }[]
+      }
       get_latency_stats: {
         Args: { p_date_from: string; p_date_to: string }
         Returns: {
@@ -358,6 +417,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      purge_old_landing_visits: { Args: never; Returns: undefined }
       purge_old_latency_logs: { Args: never; Returns: undefined }
       search_archived_todos: {
         Args: { page_offset: number; page_size: number; search_term: string }
