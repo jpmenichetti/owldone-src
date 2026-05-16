@@ -144,6 +144,31 @@ export const listUserFeatures: Handler = async ({ db, params }) => {
   return json(data ?? []);
 };
 
+export const getLandingStats: Handler = async ({ db, params }) => {
+  const { date_from, date_to } = params;
+  const { data, error } = await db.rpc("get_landing_visit_stats", {
+    p_date_from: date_from,
+    p_date_to: date_to,
+  });
+  if (error) throw error;
+  return json(data ?? []);
+};
+
+export const listLandingVisits: Handler = async ({ db, params }) => {
+  const { date_from, date_to, source, limit, offset } = params;
+  let q = db
+    .from("landing_visits")
+    .select("*", { count: "exact" })
+    .gte("created_at", date_from)
+    .lte("created_at", date_to)
+    .order("created_at", { ascending: false })
+    .range(Number(offset || 0), Number(offset || 0) + Number(limit || 50) - 1);
+  if (source && source !== "all") q = q.eq("source", source);
+  const { data, error, count } = await q;
+  if (error) throw error;
+  return json({ rows: data ?? [], total: count ?? 0 });
+};
+
 export const handlers: Record<string, Handler> = {
   get_summary: getSummary,
   get_daily: getDaily,
@@ -154,6 +179,8 @@ export const handlers: Record<string, Handler> = {
   grant_feature: grantFeature,
   revoke_feature: revokeFeature,
   list_user_features: listUserFeatures,
+  get_landing_stats: getLandingStats,
+  list_landing_visits: listLandingVisits,
 };
 
 export const handleRequest = async (req: Request): Promise<Response> => {
