@@ -13,6 +13,7 @@ import { ArrowLeft, RefreshCw, Users, ListTodo, CalendarDays, CalendarRange, Cal
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import GoogleTrafficSection from "@/components/admin/GoogleTrafficSection";
 
 type StatsSummary = {
   total_users: number;
@@ -365,6 +366,9 @@ export default function Admin() {
             </Card>
           )}
         </div>
+
+        {/* Google Traffic Section */}
+        <GoogleTrafficSection />
 
         {/* Feature Flags Section */}
         <FeatureFlagsSection />
