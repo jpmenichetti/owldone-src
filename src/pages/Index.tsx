@@ -20,10 +20,12 @@ import OnboardingDialog from "@/components/OnboardingDialog";
 import WeeklyReportSection from "@/components/WeeklyReportSection";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
+import { useTrackGoogleLanding } from "@/hooks/useTrackGoogleLanding";
 
 const CATEGORIES: TodoCategory[] = ["today", "this_week", "next_week", "others"];
 
 const Index = () => {
+  useTrackGoogleLanding();
   const { user, loading: authLoading } = useAuth();
   const { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, savingSource, searchText, setSearchText, debouncedSearchText } = useFilters();
   const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, archiveCompleted, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage } = useTodos(debouncedSearchText);
