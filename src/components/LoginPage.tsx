@@ -68,7 +68,7 @@ export default function LoginPage() {
       </div>
 
       {/* Features section */}
-      <div className="mx-auto max-w-2xl px-4 pb-20 space-y-12">
+      <div id="features" className="mx-auto max-w-2xl px-4 pb-20 space-y-12 scroll-mt-20">
         <div className="text-center space-y-2">
           <h2 className="text-3xl font-bold text-foreground">{t("features.title")}</h2>
           <p className="text-muted-foreground">{t("features.subtitle")}</p>
@@ -89,7 +89,7 @@ export default function LoginPage() {
         </div>
 
         {/* Smart Lifecycle Rules */}
-        <div className="rounded-xl border-2 border-accent/30 bg-accent/5 p-6 space-y-6">
+        <div id="lifecycle" className="rounded-xl border-2 border-accent/30 bg-accent/5 p-6 space-y-6 scroll-mt-20">
           <h2 className="text-2xl font-bold text-foreground text-center">{t("features.lifecycle.title")}</h2>
 
           {/* Overdue Detection */}
