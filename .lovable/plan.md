@@ -1,17 +1,34 @@
-## Add anchors to Features and Smart Lifecycle Rules
+# Fix: link inputs misbehave on task detail view
 
-Add scroll anchors to the two main marketing sections on the login page so they can be linked directly (e.g. `/#features`, `/#lifecycle`).
+GitHub issue #16 reports two related bugs in the Links section of `TodoDetailDialog`:
 
-### Changes
+1. With 3 link rows that share the same value, removing one removes all three.
+2. After adding several distinct links, deleting one then deleting another causes a previously-deleted link to reappear.
 
-**`src/components/LoginPage.tsx`**
-- Add `id="features"` to the Features section wrapper (the `<div>` containing "Everything you need" heading + feature cards grid).
-- Add `id="lifecycle"` to the Smart Lifecycle Rules card wrapper.
-- Add `scroll-mt-20` on both so the sticky-ish top spacing doesn't clip the heading when jumped to.
+## Root cause
 
-### Out of scope
-- No new nav links, no smooth-scroll behavior changes, no translation updates.
-- No anchors on individual feature cards or sub-rules (Overdue / Transitions) — can be added later if needed.
+In `src/components/TodoDetailDialog.tsx`:
 
-### Open question
-Would you also like in-page nav links (e.g. a small "Features · Lifecycle" bar near the top of the login page) pointing to these anchors, or just the raw `#features` / `#lifecycle` targets for external linking (Google Ads, etc.)?
+- The list is rendered with `key={url}`. When two rows have the same URL string, React sees duplicate keys and reuses/removes the wrong DOM node on update — this is why "delete one stale node reappears" after subsequent edits.
+- `removeUrl(url)` does `urls.filter((u) => u !== url)`, which removes every occurrence of that value, not the specific row the user clicked. This is why removing one of three identical links wipes all three.
+- `addUrl` does not dedupe, so duplicates can be created in the first place, which then trigger both problems above.
+
+## Fix
+
+Make each row identified by its position, not its string value:
+
+- Render with a stable per-row key: `key={`${idx}-${url}`}` and pass `idx` to the remove handler.
+- Change `removeUrl(index: number)` to splice by index: `urls.filter((_, i) => i !== index)`.
+- In `addUrl`, reject duplicates of an existing URL (toast: "Link already added") so the list stays a set in practice and the input UX matches user expectation.
+
+No backend, schema, or styling changes — purely a presentation/state bug in one component.
+
+## Files touched
+
+- `src/components/TodoDetailDialog.tsx` — `addUrl`, `removeUrl`, and the `.urls?.map(...)` render block (lines ~227–246 and ~477–490).
+
+## Verification
+
+- Add 3 identical links → remove one → only that row disappears, two remain.
+- Add 5 distinct links → delete the 5th → delete the 1st → no ghost link reappears; final list is exactly 3 links in original order minus the removed ones.
+- Adding a link that already exists shows a toast and does not append.

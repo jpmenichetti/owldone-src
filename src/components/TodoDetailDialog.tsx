@@ -237,12 +237,16 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
       toast.error("Invalid URL format");
       return;
     }
+    if ((todo.urls || []).includes(url)) {
+      toast.error("Link already added");
+      return;
+    }
     onUpdate(todo.id, { urls: [...(todo.urls || []), url] });
     setUrlInput("");
   };
 
-  const removeUrl = (url: string) => {
-    onUpdate(todo.id, { urls: (todo.urls || []).filter((u) => u !== url) });
+  const removeUrl = (index: number) => {
+    onUpdate(todo.id, { urls: (todo.urls || []).filter((_, i) => i !== index) });
   };
 
   const addPendingPreview = (file: File) => {
@@ -474,15 +478,15 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.links")}</label>
               <div className="space-y-1.5">
-                {todo.urls?.map((url) => (
-                  <div key={url} className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm">
+                {todo.urls?.map((url, idx) => (
+                  <div key={`${idx}-${url}`} className="flex items-center gap-2 rounded-md bg-muted px-3 py-1.5 text-sm">
                     <Link2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <a href={url} target="_blank" rel="noopener noreferrer" className="truncate text-primary hover:underline flex-1">
                       {url}
                     </a>
                     <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
                     {!readOnly && (
-                      <button onClick={() => removeUrl(url)} className="hover:text-destructive">
+                      <button onClick={() => removeUrl(idx)} className="hover:text-destructive">
                         <X className="h-3.5 w-3.5" />
                       </button>
                     )}
