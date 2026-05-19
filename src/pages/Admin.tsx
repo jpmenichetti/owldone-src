@@ -172,11 +172,11 @@ export default function Admin() {
   const summaryCards = summary
     ? [
         { title: "Total Users", value: summary.total_users, icon: Users },
-        { title: "Total Todos", value: summary.total_todos, icon: ListTodo },
-        { title: "Today", value: summary.todos_today_count, icon: CalendarDays },
-        { title: "This Week", value: summary.todos_this_week_count, icon: CalendarRange },
-        { title: "Next Week", value: summary.todos_next_week_count, icon: CalendarClock },
-        { title: "Others", value: summary.todos_others_count, icon: LayoutList },
+        { title: "Active Todos", value: summary.total_todos, icon: ListTodo },
+        { title: "Active · Today", value: summary.todos_today_count, icon: CalendarDays },
+        { title: "Active · This Week", value: summary.todos_this_week_count, icon: CalendarRange },
+        { title: "Active · Next Week", value: summary.todos_next_week_count, icon: CalendarClock },
+        { title: "Active · Others", value: summary.todos_others_count, icon: LayoutList },
       ]
     : [];
 
