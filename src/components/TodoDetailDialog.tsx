@@ -237,12 +237,16 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
       toast.error("Invalid URL format");
       return;
     }
+    if ((todo.urls || []).includes(url)) {
+      toast.error("Link already added");
+      return;
+    }
     onUpdate(todo.id, { urls: [...(todo.urls || []), url] });
     setUrlInput("");
   };
 
-  const removeUrl = (url: string) => {
-    onUpdate(todo.id, { urls: (todo.urls || []).filter((u) => u !== url) });
+  const removeUrl = (index: number) => {
+    onUpdate(todo.id, { urls: (todo.urls || []).filter((_, i) => i !== index) });
   };
 
   const addPendingPreview = (file: File) => {
