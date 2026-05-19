@@ -388,6 +388,15 @@ export type Database = {
           visit_count: number
         }[]
       }
+      get_latency_overall_timeseries: {
+        Args: { p_date_from: string; p_date_to: string; p_granularity?: string }
+        Returns: {
+          bucket: string
+          call_count: number
+          p50_ms: number
+          p95_ms: number
+        }[]
+      }
       get_latency_stats: {
         Args: { p_date_from: string; p_date_to: string }
         Returns: {

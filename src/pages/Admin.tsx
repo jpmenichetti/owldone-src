@@ -42,10 +42,9 @@ type LatencyStat = {
   p99_ms: number;
 };
 
-type LatencyTimeseries = {
+type OverallLatencyTimeseries = {
   bucket: string;
-  function_name: string;
-  avg_ms: number;
+  p50_ms: number;
   p95_ms: number;
   call_count: number;
 };
@@ -62,7 +61,7 @@ export default function Admin() {
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [latencyStats, setLatencyStats] = useState<LatencyStat[]>([]);
-  const [latencyTs, setLatencyTs] = useState<LatencyTimeseries[]>([]);
+  const [latencyTs, setLatencyTs] = useState<OverallLatencyTimeseries[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date>(new Date());
@@ -82,10 +81,10 @@ export default function Admin() {
     const dt = format(dateTo, "yyyy-MM-dd");
     const [stats, ts] = await Promise.all([
       invokeAdmin("get_latency_stats", { date_from: df, date_to: dt }),
-      invokeAdmin("get_latency_timeseries", { date_from: df, date_to: dt, granularity: "daily" }),
+      invokeAdmin("get_latency_overall_timeseries", { date_from: df, date_to: dt, granularity: "daily" }),
     ]);
     if (stats) setLatencyStats(stats as LatencyStat[]);
-    if (ts) setLatencyTs(ts as LatencyTimeseries[]);
+    if (ts) setLatencyTs(ts as OverallLatencyTimeseries[]);
   };
 
   useEffect(() => {
@@ -121,30 +120,12 @@ export default function Admin() {
   }, [daily, dateFrom, dateTo]);
 
   const latencyChartData = useMemo(() => {
-    // Group timeseries by bucket, with one p95 line per function
-    const bucketMap = new Map<string, Record<string, number>>();
-    for (const row of latencyTs) {
-      const label = new Date(row.bucket).toLocaleDateString("en", { month: "short", day: "numeric" });
-      if (!bucketMap.has(label)) bucketMap.set(label, { date: 0 } as any);
-      const entry = bucketMap.get(label)!;
-      entry.date = label as any;
-      entry[`${row.function_name}_p95`] = row.p95_ms;
-      entry[`${row.function_name}_avg`] = row.avg_ms;
-    }
-    return Array.from(bucketMap.values());
+    return latencyTs.map((row) => ({
+      date: new Date(row.bucket).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      p50_ms: row.p50_ms,
+      p95_ms: row.p95_ms,
+    }));
   }, [latencyTs]);
-
-  const functionNames = useMemo(() => {
-    const names = new Set(latencyTs.map((r) => r.function_name));
-    return Array.from(names).sort();
-  }, [latencyTs]);
-
-  const FUNCTION_COLORS: Record<string, string> = {
-    "todos-api": "hsl(var(--primary))",
-    "user-api": "hsl(var(--accent))",
-    "images-api": "hsl(142 76% 36%)",
-    "admin-api": "hsl(38 92% 50%)",
-  };
 
   if (isLoading) {
     return (
@@ -165,9 +146,10 @@ export default function Admin() {
     todos_completed: { label: "Completed", color: "hsl(var(--primary))" },
   };
 
-  const latencyChartConfig = Object.fromEntries(
-    functionNames.map((fn) => [`${fn}_p95`, { label: `${fn} p95`, color: FUNCTION_COLORS[fn] || "hsl(var(--primary))" }])
-  );
+  const latencyChartConfig = {
+    p95_ms: { label: "p95 (all APIs)", color: "hsl(var(--primary))" },
+    p50_ms: { label: "p50 (all APIs)", color: "hsl(var(--accent))" },
+  };
 
   const summaryCards = summary
     ? [
@@ -340,7 +322,7 @@ export default function Admin() {
         {latencyChartData.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">p95 Latency Over Time (ms)</CardTitle>
+                <CardTitle className="text-lg">Latency Over Time — p50 &amp; p95 (ms)</CardTitle>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={latencyChartConfig} className="h-[300px] w-full">
@@ -349,17 +331,22 @@ export default function Admin() {
                     <XAxis dataKey="date" fontSize={12} tickLine={false} />
                     <YAxis fontSize={12} tickLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    {functionNames.map((fn) => (
-                      <Line
-                        key={fn}
-                        type="monotone"
-                        dataKey={`${fn}_p95`}
-                        stroke={FUNCTION_COLORS[fn] || "hsl(var(--primary))"}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    ))}
+                    <Line
+                      type="monotone"
+                      dataKey="p95_ms"
+                      stroke="var(--color-p95_ms)"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="p50_ms"
+                      stroke="var(--color-p50_ms)"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
                   </LineChart>
                 </ChartContainer>
               </CardContent>
