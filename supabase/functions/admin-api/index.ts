@@ -107,6 +107,17 @@ export const getLatencyTimeseries: Handler = async ({ db, params }) => {
   return json(data);
 };
 
+export const getLatencyOverallTimeseries: Handler = async ({ db, params }) => {
+  const { date_from, date_to, granularity } = params;
+  const { data, error } = await db.rpc("get_latency_overall_timeseries", {
+    p_date_from: date_from,
+    p_date_to: date_to,
+    p_granularity: granularity || "daily",
+  });
+  if (error) throw error;
+  return json(data ?? []);
+};
+
 export const purgeLatencyLogs: Handler = async ({ db }) => {
   const { error } = await db.rpc("purge_old_latency_logs");
   if (error) throw error;
