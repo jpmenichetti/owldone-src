@@ -120,30 +120,12 @@ export default function Admin() {
   }, [daily, dateFrom, dateTo]);
 
   const latencyChartData = useMemo(() => {
-    // Group timeseries by bucket, with one p95 line per function
-    const bucketMap = new Map<string, Record<string, number>>();
-    for (const row of latencyTs) {
-      const label = new Date(row.bucket).toLocaleDateString("en", { month: "short", day: "numeric" });
-      if (!bucketMap.has(label)) bucketMap.set(label, { date: 0 } as any);
-      const entry = bucketMap.get(label)!;
-      entry.date = label as any;
-      entry[`${row.function_name}_p95`] = row.p95_ms;
-      entry[`${row.function_name}_avg`] = row.avg_ms;
-    }
-    return Array.from(bucketMap.values());
+    return latencyTs.map((row) => ({
+      date: new Date(row.bucket).toLocaleDateString("en", { month: "short", day: "numeric" }),
+      p50_ms: row.p50_ms,
+      p95_ms: row.p95_ms,
+    }));
   }, [latencyTs]);
-
-  const functionNames = useMemo(() => {
-    const names = new Set(latencyTs.map((r) => r.function_name));
-    return Array.from(names).sort();
-  }, [latencyTs]);
-
-  const FUNCTION_COLORS: Record<string, string> = {
-    "todos-api": "hsl(var(--primary))",
-    "user-api": "hsl(var(--accent))",
-    "images-api": "hsl(142 76% 36%)",
-    "admin-api": "hsl(38 92% 50%)",
-  };
 
   if (isLoading) {
     return (
