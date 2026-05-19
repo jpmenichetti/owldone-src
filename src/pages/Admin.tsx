@@ -322,7 +322,7 @@ export default function Admin() {
         {latencyChartData.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">p95 Latency Over Time (ms)</CardTitle>
+                <CardTitle className="text-lg">Latency Over Time — p50 &amp; p95 (ms)</CardTitle>
               </CardHeader>
               <CardContent>
                 <ChartContainer config={latencyChartConfig} className="h-[300px] w-full">
@@ -331,17 +331,22 @@ export default function Admin() {
                     <XAxis dataKey="date" fontSize={12} tickLine={false} />
                     <YAxis fontSize={12} tickLine={false} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    {functionNames.map((fn) => (
-                      <Line
-                        key={fn}
-                        type="monotone"
-                        dataKey={`${fn}_p95`}
-                        stroke={FUNCTION_COLORS[fn] || "hsl(var(--primary))"}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    ))}
+                    <Line
+                      type="monotone"
+                      dataKey="p95_ms"
+                      stroke="var(--color-p95_ms)"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="p50_ms"
+                      stroke="var(--color-p50_ms)"
+                      strokeWidth={2}
+                      dot={false}
+                      connectNulls
+                    />
                   </LineChart>
                 </ChartContainer>
               </CardContent>
