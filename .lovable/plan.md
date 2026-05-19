@@ -1,62 +1,50 @@
-# Replace per-function p95 chart with overall p50 + p95 series
+## Fix: Whitelist allowed fields in `updateTodo`
 
-## Goal
-On `/admin`, change the "p95 Latency Over Time" chart so it shows two lines aggregated across all edge functions/actions:
-- **Overall p95** (all APIs combined)
-- **Overall p50** (all APIs combined)
+**File:** `supabase/functions/todos-api/index.ts` (handler `updateTodo`, ~line 174)
 
-The existing per-function p95 lines are removed.
+### Problem
+`updateTodo` spreads the entire request body into the SQL UPDATE via a service-role client. An attacker can include `user_id` (or any other column) in the payload to reassign their own todo to another user, injecting arbitrary content into the victim's list.
 
-## Why a new server-side aggregation
+### Change
+Replace the spread with an explicit whitelist of editable columns. Only pick known-safe fields, drop `undefined` values so partial updates still work, and reject the request if nothing valid remains.
 
-Percentiles cannot be correctly recombined client-side from per-function values (averaging p95s is wrong). The aggregate must be computed in SQL from the raw `api_latency_logs.duration_ms` values per time bucket.
+```ts
+const ALLOWED_UPDATE_FIELDS = [
+  "text", "category", "tags", "notes", "urls",
+  "completed", "completed_at",
+  "removed", "removed_at",
+  "recurrence", "next_recurrence_at",
+] as const;
 
-## Backend changes
+export async function updateTodo({ db, userId, params }: Ctx): Promise<Response> {
+  const { id } = params;
+  if (!id) throw { status: 400, message: "Missing id" };
 
-Migration: add a new SQL function
+  const updates: Record<string, unknown> = {};
+  for (const key of ALLOWED_UPDATE_FIELDS) {
+    if (params[key] !== undefined) updates[key] = params[key];
+  }
+  if (Object.keys(updates).length === 0) {
+    throw { status: 400, message: "No valid fields to update" };
+  }
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_latency_overall_timeseries(
-  p_date_from timestamptz,
-  p_date_to   timestamptz,
-  p_granularity text DEFAULT 'daily'
-)
-RETURNS TABLE(bucket timestamptz, p50_ms numeric, p95_ms numeric, call_count bigint)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
-AS $$
-  SELECT
-    date_trunc(CASE WHEN p_granularity = 'hourly' THEN 'hour' ELSE 'day' END, created_at) AS bucket,
-    round(percentile_cont(0.5)  WITHIN GROUP (ORDER BY duration_ms)::numeric, 1) AS p50_ms,
-    round(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms)::numeric, 1) AS p95_ms,
-    count(*) AS call_count
-  FROM api_latency_logs
-  WHERE created_at >= p_date_from AND created_at <= p_date_to
-  GROUP BY bucket
-  ORDER BY bucket;
-$$;
+  const { error } = await db
+    .from("todos")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return json({ success: true });
+}
 ```
 
-The existing per-function `get_latency_timeseries` is left in place (still used elsewhere if needed, and harmless if not).
+This guarantees `user_id`, `id`, `created_at`, `updated_at`, `recurring_source_id`, etc. cannot be overwritten through this endpoint, even if a client sends them.
 
-## Edge function changes (`supabase/functions/admin-api/index.ts`)
+### Verification
+1. Deploy `todos-api` edge function.
+2. Existing todo edits from the UI (text, category, tags, notes, urls, complete, archive, recurrence) continue to work.
+3. Manual curl with `{ id, action: "update", user_id: "<other-uuid>", text: "x" }` no longer reassigns ownership — `user_id` is silently ignored, only `text` is updated, and only if the row belongs to the caller.
+4. Mark the `update_todo_field_inject` finding as fixed.
 
-- Add a new handler `get_latency_overall_timeseries` that calls the new RPC and returns the rows. Mirror the existing `getLatencyTimeseries` handler.
-- Register it in the `handlers` map.
-
-## Frontend changes (`src/pages/Admin.tsx`)
-
-- New type: `OverallLatencyTimeseries = { bucket: string; p50_ms: number; p95_ms: number; call_count: number }`.
-- Replace `latencyTs` state + `LatencyTimeseries` type with the overall variant; rename `fetchLatency` to call `get_latency_overall_timeseries` (still fetch `get_latency_stats` in parallel for the table below).
-- Remove `functionNames` derivation and the per-function `latencyChartData` reshape. The new chart data is the rows directly (`bucket`, `p50_ms`, `p95_ms`).
-- Update `latencyChartConfig` to two static entries:
-  - `p95_ms`: label "p95 (all APIs)", color `hsl(var(--primary))`
-  - `p50_ms`: label "p50 (all APIs)", color `hsl(var(--accent))`
-- Replace the `.map(fn => <Line dataKey={\`${fn}_p95\`} ... />)` block with two static `<Line>`s for `p95_ms` and `p50_ms`.
-- Update the card title from `"p95 Latency Over Time (ms)"` to `"Latency Over Time — p50 & p95 (ms)"`.
-- The per-function table below the chart stays as-is (it already shows p50/p95/p99 per function+action).
-
-## Verification
-
-- Open `/admin`, scroll to "API Latency". Chart shows exactly two lines labeled p50 and p95, both spanning the selected date range. Tooltip lists both values per bucket.
-- Per-function stats table beneath the chart still renders unchanged.
-- No console errors; network shows a single `admin-api` call for `get_latency_overall_timeseries`.
+### Out of scope
+The second finding (`process-recurring-tasks` missing auth) is not addressed here — handle it in a separate plan if desired.

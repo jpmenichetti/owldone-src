@@ -171,9 +171,30 @@ export async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
   return json({ success: true, id: inserted.id });
 }
 
+const ALLOWED_UPDATE_FIELDS = [
+  "text", "category", "tags", "notes", "urls",
+  "completed", "completed_at",
+  "removed", "removed_at",
+  "recurrence", "next_recurrence_at",
+] as const;
+
 export async function updateTodo({ db, userId, params }: Ctx): Promise<Response> {
-  const { id, action: _a, ...updates } = params;
-  const { error } = await db.from("todos").update(updates).eq("id", id).eq("user_id", userId);
+  const { id } = params;
+  if (!id) throw { status: 400, message: "Missing id" };
+
+  const updates: Record<string, unknown> = {};
+  for (const key of ALLOWED_UPDATE_FIELDS) {
+    if (params[key] !== undefined) updates[key] = params[key];
+  }
+  if (Object.keys(updates).length === 0) {
+    throw { status: 400, message: "No valid fields to update" };
+  }
+
+  const { error } = await db
+    .from("todos")
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", userId);
   if (error) throw error;
   return json({ success: true });
 }
