@@ -186,6 +186,7 @@ export const handlers: Record<string, Handler> = {
   refresh,
   get_latency_stats: getLatencyStats,
   get_latency_timeseries: getLatencyTimeseries,
+  get_latency_overall_timeseries: getLatencyOverallTimeseries,
   purge_latency_logs: purgeLatencyLogs,
   grant_feature: grantFeature,
   revoke_feature: revokeFeature,
