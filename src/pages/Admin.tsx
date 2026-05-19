@@ -42,10 +42,9 @@ type LatencyStat = {
   p99_ms: number;
 };
 
-type LatencyTimeseries = {
+type OverallLatencyTimeseries = {
   bucket: string;
-  function_name: string;
-  avg_ms: number;
+  p50_ms: number;
   p95_ms: number;
   call_count: number;
 };
