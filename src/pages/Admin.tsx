@@ -61,7 +61,7 @@ export default function Admin() {
   const [summary, setSummary] = useState<StatsSummary | null>(null);
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [latencyStats, setLatencyStats] = useState<LatencyStat[]>([]);
-  const [latencyTs, setLatencyTs] = useState<LatencyTimeseries[]>([]);
+  const [latencyTs, setLatencyTs] = useState<OverallLatencyTimeseries[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [dateFrom, setDateFrom] = useState<Date>(subDays(new Date(), 30));
   const [dateTo, setDateTo] = useState<Date>(new Date());
@@ -81,10 +81,10 @@ export default function Admin() {
     const dt = format(dateTo, "yyyy-MM-dd");
     const [stats, ts] = await Promise.all([
       invokeAdmin("get_latency_stats", { date_from: df, date_to: dt }),
-      invokeAdmin("get_latency_timeseries", { date_from: df, date_to: dt, granularity: "daily" }),
+      invokeAdmin("get_latency_overall_timeseries", { date_from: df, date_to: dt, granularity: "daily" }),
     ]);
     if (stats) setLatencyStats(stats as LatencyStat[]);
-    if (ts) setLatencyTs(ts as LatencyTimeseries[]);
+    if (ts) setLatencyTs(ts as OverallLatencyTimeseries[]);
   };
 
   useEffect(() => {
