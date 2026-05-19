@@ -146,9 +146,10 @@ export default function Admin() {
     todos_completed: { label: "Completed", color: "hsl(var(--primary))" },
   };
 
-  const latencyChartConfig = Object.fromEntries(
-    functionNames.map((fn) => [`${fn}_p95`, { label: `${fn} p95`, color: FUNCTION_COLORS[fn] || "hsl(var(--primary))" }])
-  );
+  const latencyChartConfig = {
+    p95_ms: { label: "p95 (all APIs)", color: "hsl(var(--primary))" },
+    p50_ms: { label: "p50 (all APIs)", color: "hsl(var(--accent))" },
+  };
 
   const summaryCards = summary
     ? [
