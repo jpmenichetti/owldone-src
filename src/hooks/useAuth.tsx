@@ -19,6 +19,34 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
 });
 
+const RETURN_TO_KEY = "owldone_post_auth_return_to";
+
+const stashReturnTo = () => {
+  const target = window.location.pathname + window.location.search + window.location.hash;
+  // Only stash if there's actually something to restore beyond "/"
+  if (target && target !== "/") {
+    try {
+      sessionStorage.setItem(RETURN_TO_KEY, target);
+    } catch {
+      // ignore storage errors
+    }
+  }
+};
+
+const consumeReturnTo = () => {
+  try {
+    const target = sessionStorage.getItem(RETURN_TO_KEY);
+    if (!target) return;
+    sessionStorage.removeItem(RETURN_TO_KEY);
+    const current = window.location.pathname + window.location.search + window.location.hash;
+    if (target !== current) {
+      window.history.replaceState({}, "", target);
+    }
+  } catch {
+    // ignore storage errors
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -32,6 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       autoLoginAttempted = true;
       const wasSignedIn = localStorage.getItem("owldone_was_signed_in");
       if (wasSignedIn === "true") {
+        stashReturnTo();
         await lovable.auth.signInWithOAuth("google", {
           redirect_uri: window.location.origin,
         });
@@ -45,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         localStorage.setItem("owldone_was_signed_in", "true");
+        consumeReturnTo();
       }
       setLoading(false);
     });
@@ -54,6 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session) {
         localStorage.setItem("owldone_was_signed_in", "true");
+        consumeReturnTo();
         setLoading(false);
       } else {
         tryAutoLogin();
@@ -64,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signInWithGoogle = async () => {
+    stashReturnTo();
     await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
