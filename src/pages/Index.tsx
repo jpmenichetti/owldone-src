@@ -90,7 +90,7 @@ const Index = () => {
 
   const openTodo = useCallback(
     (todo: Todo, readOnly = false) => {
-      pendingOpenRef.current = { id: todo.id, text: todo.text, category: todo.category };
+      pendingOpenRef.current = { id: todo.id, text: todo.text, category: todo.category as TodoCategory };
       setTodoParam(todo.id, readOnly);
     },
     [setTodoParam]
