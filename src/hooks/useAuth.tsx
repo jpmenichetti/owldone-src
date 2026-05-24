@@ -41,6 +41,7 @@ const consumeReturnTo = () => {
     const current = window.location.pathname + window.location.search + window.location.hash;
     if (target !== current) {
       window.history.replaceState({}, "", target);
+      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
     }
   } catch {
     // ignore storage errors
