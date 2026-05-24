@@ -1,40 +1,29 @@
-## Fix: Stop leaking raw database errors from edge functions
+## Fix: Validate contentType on image uploads
 
-All edge function catch blocks currently return `e.message` to the client, which exposes Postgres error text (table names, column names, constraint names). The fix is to log the full error server-side and return a safe, generic message to the client — preserving explicit, intentional 4xx messages thrown by our own handlers (e.g. `{ status: 401, message: "Unauthorized" }`).
+The `uploadImage` handler in `supabase/functions/images-api/index.ts` currently accepts an arbitrary `contentType` string from the client and forwards it verbatim to Supabase Storage. Magic-byte validation ensures the bytes are a real image, but the stored MIME type can still be spoofed (e.g. `text/html`, `application/javascript`), which can affect how the file is served later via signed URLs.
 
 ### Approach
 
-Introduce a small helper used in every catch block:
+Derive the stored `contentType` from the magic bytes we already inspect, ignoring whatever the client sends.
 
-```ts
-const status = e?.status && Number.isInteger(e.status) ? e.status : 500;
-const isClientError = status >= 400 && status < 500;
-const safeMessage = isClientError
-  ? (e?.message || "Bad request")
-  : "Internal server error";
-console.error(`[${FUNCTION_NAME}] error`, { action, status, error: e });
-return json({ error: safeMessage }, status);
-```
-
-Rationale:
-- Our handlers throw `{ status, message }` with intentional, safe messages (e.g. `"Unauthorized"`, `"Todo not found"`, `"File too large"`). Those remain visible to the client.
-- Any other thrown error (Postgres errors from `throw error`, unexpected exceptions) becomes a generic `"Internal server error"` with HTTP 500. Full details still logged via `console.error` so they remain debuggable in edge function logs.
+1. Extend `isValidImageBytes` (or add a sibling helper `detectImageMime`) that returns one of `"image/jpeg" | "image/png" | "image/gif" | "image/webp" | null` based on the same signature checks already in place.
+2. In `uploadImage`:
+   - Call `detectImageMime(bytes)`. If `null` → return `400 { error: "Invalid image file..." }` (replaces the current `isValidImageBytes` check).
+   - Use the detected MIME for both:
+     - `db.storage.from("todo-images").upload(path, bytes, { contentType: detected })`
+     - The file extension sanity (keep current `sanitizeFileName(fileName)`; no need to rewrite extension).
+   - Stop reading `contentType` from `params`. The client value is discarded.
+3. Keep `todo_images` row insert unchanged (it doesn't store MIME).
 
 ### Files to change
 
-1. **`supabase/functions/todos-api/index.ts`** — replace the catch in `handleRequest` (line ~347).
-2. **`supabase/functions/user-api/index.ts`** — replace the catch (line ~210).
-3. **`supabase/functions/images-api/index.ts`** — replace the catch (line ~176).
-4. **`supabase/functions/admin-api/index.ts`** — replace the catch (line ~227).
-5. **`supabase/functions/process-recurring-tasks/index.ts`** — replace the catch (line ~141). This function has no user-facing client; always return generic `"Internal server error"` on 500.
-6. **`supabase/functions/compute-stats/index.ts`** — replace the catch (line ~64). Same generic 500.
-7. **`supabase/functions/generate-weekly-report/index.ts`** — replace the catch (line ~217). Same generic 500.
+- `supabase/functions/images-api/index.ts` — add `detectImageMime`, update `uploadImage`.
+- `supabase/functions/images-api/index.test.ts` — update existing upload tests to reflect that `contentType` param is ignored; add a test asserting the storage upload receives the detected MIME even when the client sends a spoofed one (e.g. client sends `text/html` but bytes are PNG → stored as `image/png`).
 
-No changes to handler logic, no DB migrations, no config changes.
+No DB migration, no config change, no frontend change required (the frontend may keep sending `contentType`; it's simply ignored server-side).
 
 ### Verification
 
-- Deploy the 7 functions.
-- `curl_edge_functions` to `todos-api` with no Authorization → expect `401 { error: "Unauthorized" }` (intentional message preserved).
-- `curl_edge_functions` to `todos-api` with a malformed body that triggers a Postgres error → expect `500 { error: "Internal server error" }` (no schema leak); confirm details are present in edge function logs.
-- Mark `raw_errors_to_client` finding as fixed.
+- Run `test_edge_functions` for `images-api`.
+- Deploy `images-api`.
+- Mark `upload_contenttype_unvalidated` as fixed.
