@@ -143,23 +143,14 @@ const Index = () => {
   }, [todoIdParam, todos, archived, isLoading, setTodoParam]);
 
   // When an optimistic temp id is replaced by the real server id, swap the URL param
-  const prevTodoIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!todoIdParam) {
-      prevTodoIdRef.current = null;
-      return;
-    }
-    const current = todos.find((t) => t.id === todoIdParam);
-    if (current) {
-      prevTodoIdRef.current = todoIdParam;
-      return;
-    }
-    // Param exists but no live todo with that id — look for a matching replacement
-    const prev = prevTodoIdRef.current;
-    if (prev !== todoIdParam) return;
-    const replacement = todos.find((t) => !todos.some((o) => o.id === todoIdParam) && t.id !== todoIdParam);
-    if (replacement) {
-      setTodoParam(replacement.id, dialogReadOnly, true);
+    const pending = pendingOpenRef.current;
+    if (!pending || !todoIdParam || pending.id !== todoIdParam) return;
+    if (todos.some((t) => t.id === todoIdParam)) return;
+    const match = todos.find((t) => t.text === pending.text && t.category === pending.category);
+    if (match) {
+      pendingOpenRef.current = { ...pending, id: match.id };
+      setTodoParam(match.id, dialogReadOnly, true);
     }
   }, [todos, todoIdParam, dialogReadOnly, setTodoParam]);
 
