@@ -125,22 +125,39 @@ const Index = () => {
     updateTodo.mutate({ id: todoId, ...updates } as any);
   };
 
-  // Keep selected todo in sync with latest data (handles temp→real ID swap)
+  // Resolve URL todo id to a live todo from current data
   const liveTodo = useMemo(() => {
-    if (!selectedTodo) return null;
-    return [...todos, ...archived].find((t) => t.id === selectedTodo.id) || selectedTodo;
-  }, [selectedTodo, todos, archived]);
+    if (!todoIdParam) return null;
+    return [...todos, ...archived].find((t) => t.id === todoIdParam) || null;
+  }, [todoIdParam, todos, archived]);
 
-  // Sync selectedTodo ID when optimistic temp ID is replaced by real server ID
+  // Clear ?todo= if it points to an unknown id (e.g. after delete or bad link)
   useEffect(() => {
-    if (!selectedTodo) return;
-    const match = todos.find(
-      (t) => t.id !== selectedTodo.id && t.text === selectedTodo.text && t.category === selectedTodo.category
-    );
-    if (match && !todos.find((t) => t.id === selectedTodo.id)) {
-      setSelectedTodo(match);
+    if (!todoIdParam || isLoading) return;
+    const exists = todos.some((t) => t.id === todoIdParam) || archived.some((t) => t.id === todoIdParam);
+    if (!exists) setTodoParam(null, false, true);
+  }, [todoIdParam, todos, archived, isLoading, setTodoParam]);
+
+  // When an optimistic temp id is replaced by the real server id, swap the URL param
+  const prevTodoIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!todoIdParam) {
+      prevTodoIdRef.current = null;
+      return;
     }
-  }, [todos, selectedTodo]);
+    const current = todos.find((t) => t.id === todoIdParam);
+    if (current) {
+      prevTodoIdRef.current = todoIdParam;
+      return;
+    }
+    // Param exists but no live todo with that id — look for a matching replacement
+    const prev = prevTodoIdRef.current;
+    if (prev !== todoIdParam) return;
+    const replacement = todos.find((t) => !todos.some((o) => o.id === todoIdParam) && t.id !== todoIdParam);
+    if (replacement) {
+      setTodoParam(replacement.id, dialogReadOnly, true);
+    }
+  }, [todos, todoIdParam, dialogReadOnly, setTodoParam]);
 
   if (authLoading) {
     return (
