@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTodos, Todo, TodoCategory, isOverdue } from "@/hooks/useTodos";
 import { useI18n } from "@/i18n/I18nContext";
@@ -33,8 +34,9 @@ const Index = () => {
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
-  const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-  const [dialogReadOnly, setDialogReadOnly] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const todoIdParam = searchParams.get("todo");
+  const dialogReadOnly = searchParams.get("ro") === "1";
   const [activeDragTodo, setActiveDragTodo] = useState<Todo | null>(null);
 
   const allTags = useMemo(
@@ -62,10 +64,37 @@ const Index = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
-  const openTodo = useCallback((todo: Todo, readOnly = false) => {
-    setSelectedTodo(todo);
-    setDialogReadOnly(readOnly);
-  }, []);
+  const setTodoParam = useCallback(
+    (id: string | null, readOnly = false, replace = false) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id) {
+            next.set("todo", id);
+            if (readOnly) next.set("ro", "1");
+            else next.delete("ro");
+          } else {
+            next.delete("todo");
+            next.delete("ro");
+          }
+          return next;
+        },
+        { replace }
+      );
+    },
+    [setSearchParams]
+  );
+
+  // Remember the optimistic todo signature so we can swap temp→real IDs in the URL
+  const pendingOpenRef = useRef<{ id: string; text: string; category: TodoCategory } | null>(null);
+
+  const openTodo = useCallback(
+    (todo: Todo, readOnly = false) => {
+      pendingOpenRef.current = { id: todo.id, text: todo.text, category: todo.category as TodoCategory };
+      setTodoParam(todo.id, readOnly);
+    },
+    [setTodoParam]
+  );
 
   const handleAdd = useCallback((text: string, category: TodoCategory) => {
     addTodo.mutate({ text, category, tempId: crypto.randomUUID() });
@@ -100,22 +129,33 @@ const Index = () => {
     updateTodo.mutate({ id: todoId, ...updates } as any);
   };
 
-  // Keep selected todo in sync with latest data (handles temp→real ID swap)
+  // Resolve URL todo id to a live todo from current data
   const liveTodo = useMemo(() => {
-    if (!selectedTodo) return null;
-    return [...todos, ...archived].find((t) => t.id === selectedTodo.id) || selectedTodo;
-  }, [selectedTodo, todos, archived]);
+    if (!todoIdParam) return null;
+    return [...todos, ...archived].find((t) => t.id === todoIdParam) || null;
+  }, [todoIdParam, todos, archived]);
 
-  // Sync selectedTodo ID when optimistic temp ID is replaced by real server ID
+  // Clear ?todo= if it points to an unknown id (e.g. after delete or bad link).
+  // Skip while a freshly-opened optimistic todo is still waiting for its real id.
   useEffect(() => {
-    if (!selectedTodo) return;
-    const match = todos.find(
-      (t) => t.id !== selectedTodo.id && t.text === selectedTodo.text && t.category === selectedTodo.category
-    );
-    if (match && !todos.find((t) => t.id === selectedTodo.id)) {
-      setSelectedTodo(match);
+    if (!todoIdParam || isLoading) return;
+    const exists = todos.some((t) => t.id === todoIdParam) || archived.some((t) => t.id === todoIdParam);
+    if (exists) return;
+    if (pendingOpenRef.current?.id === todoIdParam) return;
+    setTodoParam(null, false, true);
+  }, [todoIdParam, todos, archived, isLoading, setTodoParam]);
+
+  // When an optimistic temp id is replaced by the real server id, swap the URL param
+  useEffect(() => {
+    const pending = pendingOpenRef.current;
+    if (!pending || !todoIdParam || pending.id !== todoIdParam) return;
+    if (todos.some((t) => t.id === todoIdParam)) return;
+    const match = todos.find((t) => t.text === pending.text && t.category === pending.category);
+    if (match) {
+      pendingOpenRef.current = { ...pending, id: match.id };
+      setTodoParam(match.id, dialogReadOnly, true);
     }
-  }, [todos, selectedTodo]);
+  }, [todos, todoIdParam, dialogReadOnly, setTodoParam]);
 
   if (authLoading) {
     return (
@@ -227,8 +267,8 @@ const Index = () => {
 
       <TodoDetailDialog
         todo={liveTodo}
-        open={!!selectedTodo && !featureAccessLoading}
-        onClose={() => setSelectedTodo(null)}
+        open={!!liveTodo && !featureAccessLoading}
+        onClose={() => setTodoParam(null)}
         onUpdate={(id, updates) => updateTodo.mutate({ id, ...updates })}
         onUploadImage={(todoId, file) => uploadImage.mutate({ todoId, file })}
         onDeleteImage={(id, storagePath) => deleteImage.mutate({ id, storagePath })}
