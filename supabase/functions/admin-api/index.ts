@@ -219,12 +219,15 @@ export const handleRequest = async (req: Request): Promise<Response> => {
     logLatency(db, action, performance.now() - t0, resp.status, userId);
     return resp;
   } catch (e: any) {
-    const status = e.status || 500;
+    const status = Number.isInteger(e?.status) ? e.status : 500;
     try {
       const sc = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!) as DbClient;
       logLatency(sc, action, performance.now() - t0, status, userId);
     } catch {}
-    return json({ error: e.message || "Internal error" }, status);
+    const isClientError = status >= 400 && status < 500;
+    const safeMessage = isClientError ? (e?.message || "Bad request") : "Internal server error";
+    console.error("[admin-api] error", { action, status, error: e });
+    return json({ error: safeMessage }, status);
   }
 };
 

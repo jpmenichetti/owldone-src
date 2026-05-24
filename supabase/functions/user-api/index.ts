@@ -206,8 +206,11 @@ export const handleRequest = async (req: Request): Promise<Response> => {
     statusCode = response.status;
     return response;
   } catch (e: any) {
-    statusCode = e.status || 500;
-    return json({ error: e.message || "Internal error" }, statusCode);
+    statusCode = Number.isInteger(e?.status) ? e.status : 500;
+    const isClientError = statusCode >= 400 && statusCode < 500;
+    const safeMessage = isClientError ? (e?.message || "Bad request") : "Internal server error";
+    console.error("[user-api] error", { action, statusCode, error: e });
+    return json({ error: safeMessage }, statusCode);
   } finally {
     try {
       const logger =
