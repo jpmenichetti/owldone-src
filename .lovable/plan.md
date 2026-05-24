@@ -1,41 +1,27 @@
-## GitHub Issue #10 — Persist view state in the URL
+## Fix: Authenticate `process-recurring-tasks` edge function
 
-### Problem
-Opening a todo for editing is local component state only. Refreshing the page (or sharing the URL, or hitting back) loses the open detail panel and drops the user back to the plain list. The issue author calls this out specifically for the "edit a todo" view.
+The `process-recurring-tasks` function runs with service-role credentials and mutates every user's todos, but accepts unauthenticated requests. I'll mirror the proven pattern already used in `generate-weekly-report`: accept either a valid `x-cron-secret` (validated against the `CRON_SECRET` vault entry via `verify_cron_secret`) or a service-role bearer token, and reject everything else with 401.
 
-### Scope
-Persist the **selected todo** in the URL via a query parameter. On load, if the parameter is present, open the detail panel for that todo automatically. Closing the panel removes the parameter. Filters and other UI state are out of scope for this change (filters are already persisted server-side per the existing persistent-filtering feature).
+### Changes
 
-### Approach
-Use React Router's `useSearchParams` in `src/pages/Index.tsx` to drive `selectedTodo` from a `?todo=<id>` query string.
+**1. `supabase/functions/process-recurring-tasks/index.ts`**
+- At the top of the handler (after CORS preflight), read `Authorization` and `x-cron-secret` headers.
+- Compute `serviceRoleOk = bearer === SUPABASE_SERVICE_ROLE_KEY`.
+- If `x-cron-secret` is provided, call `verify_cron_secret` RPC with a service-role client to validate it against the vault.
+- If neither check passes, return `401 { error: "Unauthorized" }` with CORS headers.
+- Leave the rest of the recurring-task processing logic unchanged.
 
-```text
-/                   → no panel open
-/?todo=abc-123      → detail panel open for todo abc-123 (edit mode)
-/?todo=abc-123&ro=1 → detail panel open in read-only mode (archived items)
-```
+**2. `supabase/config.toml`**
+- No change needed. The function already deploys with `verify_jwt = false` by default, which is correct because we authenticate via cron secret / service-role bearer rather than user JWT (the scheduler is not a logged-in user).
 
-### Changes — `src/pages/Index.tsx`
+### Why this approach
 
-1. Replace the `selectedTodo` / `dialogReadOnly` `useState` with values derived from `useSearchParams`:
-   - `todoId = searchParams.get("todo")`
-   - `dialogReadOnly = searchParams.get("ro") === "1"`
-2. Compute `liveTodo` by looking up `todoId` in `[...todos, ...archived]` (same as today, just keyed off the URL id).
-3. Update `openTodo(todo, readOnly)` to call `setSearchParams` with `{ todo: todo.id, ...(readOnly ? { ro: "1" } : {}) }` using `replace: false` so back/forward works.
-4. `onClose` for the dialog deletes both `todo` and `ro` params via `setSearchParams`.
-5. Keep the existing temp→real ID swap effect, but instead of `setSelectedTodo(match)` it calls `setSearchParams` with the real id (`replace: true`, so the optimistic temp id is not left in browser history).
-6. Open the panel only once todos have loaded and the id resolves — if `todoId` is set but no matching todo exists after loading completes, silently clear the param (handles deleted/invalid ids).
-
-### Out of scope
-- Persisting filters, search text, archive expansion, or scroll position. Filters already persist via the user's saved settings; URL-syncing them can be a follow-up.
-- Deep-linking to a specific tab inside the detail dialog.
-- Changing route shape (e.g. `/todo/:id`) — query param keeps the change minimal and avoids new routes.
+- Matches the existing, reviewed pattern in `generate-weekly-report` — same secret, same validation function, same failure mode.
+- The cron job (pg_cron → pg_net) can keep calling the function by sending either the service-role key as bearer or the `x-cron-secret` header; whichever the existing scheduler uses will continue to work after I check which header the cron entry sends.
+- No DB migration required: `CRON_SECRET` and `verify_cron_secret` already exist.
 
 ### Verification
-1. Open a task → URL becomes `/?todo=<id>`. Refresh → same task reopens automatically.
-2. Open an archived task from the archive list → URL is `/?todo=<id>&ro=1`. Refresh → reopens in read-only mode.
-3. Close the dialog → params removed, URL is `/`.
-4. Browser back after opening a task closes the dialog; forward reopens it.
-5. Open a task, edit text, close → no `todo` param remains and the new text is persisted.
-6. Manually visit `/?todo=does-not-exist` → after todos load, panel does not open and the param is cleared.
-7. Optimistic add → open immediately → temp id is replaced in the URL by the real id once the server responds, without adding a history entry.
+
+- After implementing, call the function via `curl_edge_functions` with no auth → expect 401.
+- Call with the service-role bearer → expect normal `{ processed: N }` response.
+- Confirm the scheduled `pg_cron` job entry includes either the service-role key in `Authorization` or `x-cron-secret`; if it doesn't, update the cron job SQL to add the header so the schedule keeps working.
