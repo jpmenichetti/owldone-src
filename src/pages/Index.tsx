@@ -138,12 +138,12 @@ const Index = () => {
   // Clear ?todo= if it points to an unknown id (e.g. after delete or bad link).
   // Skip while a freshly-opened optimistic todo is still waiting for its real id.
   useEffect(() => {
-    if (!todoIdParam || isLoading) return;
+    if (!user || !todoIdParam || isLoading) return;
     const exists = todos.some((t) => t.id === todoIdParam) || archived.some((t) => t.id === todoIdParam);
     if (exists) return;
     if (pendingOpenRef.current?.id === todoIdParam) return;
     setTodoParam(null, false, true);
-  }, [todoIdParam, todos, archived, isLoading, setTodoParam]);
+  }, [user, todoIdParam, todos, archived, isLoading, setTodoParam]);
 
   // When an optimistic temp id is replaced by the real server id, swap the URL param
   useEffect(() => {
