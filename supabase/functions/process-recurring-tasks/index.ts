@@ -138,6 +138,6 @@ Deno.serve(async (req) => {
     return json({ processed });
   } catch (e: any) {
     console.error("process-recurring-tasks error:", e);
-    return json({ error: e.message || "Internal error" }, 500);
+    return json({ error: "Internal server error" }, 500);
   }
 });
