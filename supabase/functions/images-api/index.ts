@@ -72,14 +72,15 @@ export function sanitizeFileName(fileName: string): string {
 }
 
 export const uploadImage: Handler = async ({ db, userId, params }) => {
-  const { todoId, fileBase64, fileName, contentType } = params;
+  const { todoId, fileBase64, fileName } = params;
   const bytes = decodeBase64(fileBase64);
   const MAX_SIZE = 10 * 1024 * 1024;
   if (bytes.length > MAX_SIZE) {
     return json({ error: "File too large. Maximum size is 10MB." }, 400);
   }
 
-  if (!isValidImageBytes(bytes)) {
+  const detectedMime = detectImageMime(bytes);
+  if (!detectedMime) {
     return json({ error: "Invalid image file. Only JPEG, PNG, GIF, and WebP are allowed." }, 400);
   }
 
@@ -91,7 +92,7 @@ export const uploadImage: Handler = async ({ db, userId, params }) => {
 
   const { error: uploadError } = await db.storage
     .from("todo-images")
-    .upload(path, bytes, { contentType });
+    .upload(path, bytes, { contentType: detectedMime });
   if (uploadError) throw uploadError;
 
   const { error: dbError } = await db.from("todo_images").insert({
