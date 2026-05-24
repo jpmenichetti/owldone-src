@@ -34,8 +34,9 @@ const Index = () => {
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
-  const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-  const [dialogReadOnly, setDialogReadOnly] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const todoIdParam = searchParams.get("todo");
+  const dialogReadOnly = searchParams.get("ro") === "1";
   const [activeDragTodo, setActiveDragTodo] = useState<Todo | null>(null);
 
   const allTags = useMemo(
