@@ -85,8 +85,12 @@ const Index = () => {
     [setSearchParams]
   );
 
+  // Remember the optimistic todo signature so we can swap temp→real IDs in the URL
+  const pendingOpenRef = useRef<{ id: string; text: string; category: TodoCategory } | null>(null);
+
   const openTodo = useCallback(
     (todo: Todo, readOnly = false) => {
+      pendingOpenRef.current = { id: todo.id, text: todo.text, category: todo.category };
       setTodoParam(todo.id, readOnly);
     },
     [setTodoParam]
