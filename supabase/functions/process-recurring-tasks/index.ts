@@ -29,6 +29,27 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const db = createClient(supabaseUrl, serviceKey);
 
+    // Authenticate: require either a valid x-cron-secret or service-role bearer token.
+    const authHeader = req.headers.get("Authorization");
+    const providedSecret = req.headers.get("x-cron-secret");
+    const bearer = authHeader?.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "")
+      : null;
+
+    const serviceRoleOk = !!bearer && bearer === serviceKey;
+    let secretOk = false;
+    if (providedSecret) {
+      const { data, error } = await db.rpc("verify_cron_secret", {
+        _provided: providedSecret,
+      });
+      if (!error && data === true) secretOk = true;
+    }
+
+    if (!secretOk && !serviceRoleOk) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+
+
     // Find all todos with next_recurrence_at <= now
     const { data: dueTodos, error: fetchErr } = await db
       .from("todos")
