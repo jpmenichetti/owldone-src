@@ -308,6 +308,39 @@ Deno.test("uploadImage propagates db insert errors", async () => {
   );
 });
 
+Deno.test("uploadImage ignores client contentType and stores detected MIME", async () => {
+  const calls: Call[] = [];
+  let uploadOpts: any = null;
+  const db = buildMockDb(
+    {
+      todos: () => ({ data: { id: TODO_ID }, error: null }),
+      todo_images: () => ({ data: null, error: null }),
+    },
+    {
+      "todo-images": {
+        upload: (_path, _bytes, opts) => {
+          uploadOpts = opts;
+          return { data: null, error: null };
+        },
+      },
+    },
+    calls,
+  );
+
+  const res = await uploadImage({
+    db,
+    userId: USER_ID,
+    params: {
+      todoId: TODO_ID,
+      fileBase64: encodeBase64(pngBytes()),
+      fileName: "x.png",
+      contentType: "text/html", // spoofed
+    },
+  });
+  assertEquals(res.status, 200);
+  assertEquals(uploadOpts.contentType, "image/png");
+});
+
 // ---------- deleteImage ----------
 
 Deno.test("deleteImage removes storage object then deletes db row", async () => {
