@@ -64,10 +64,33 @@ const Index = () => {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
-  const openTodo = useCallback((todo: Todo, readOnly = false) => {
-    setSelectedTodo(todo);
-    setDialogReadOnly(readOnly);
-  }, []);
+  const setTodoParam = useCallback(
+    (id: string | null, readOnly = false, replace = false) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (id) {
+            next.set("todo", id);
+            if (readOnly) next.set("ro", "1");
+            else next.delete("ro");
+          } else {
+            next.delete("todo");
+            next.delete("ro");
+          }
+          return next;
+        },
+        { replace }
+      );
+    },
+    [setSearchParams]
+  );
+
+  const openTodo = useCallback(
+    (todo: Todo, readOnly = false) => {
+      setTodoParam(todo.id, readOnly);
+    },
+    [setTodoParam]
+  );
 
   const handleAdd = useCallback((text: string, category: TodoCategory) => {
     addTodo.mutate({ text, category, tempId: crypto.randomUUID() });
