@@ -1,4 +1,4 @@
-import { AlertTriangle, Tag, X, Search, Loader2 } from "lucide-react";
+import { AlertTriangle, Tag, X, Search, Loader2, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,9 @@ interface FilterBarProps {
   searchText: string;
   isSaving?: boolean;
   isSavingTags?: boolean;
+  completedCount?: number;
+  isArchiving?: boolean;
+  onArchive?: () => void;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
@@ -28,6 +31,9 @@ const FilterBar = ({
   searchText,
   isSaving,
   isSavingTags,
+  completedCount = 0,
+  isArchiving,
+  onArchive,
   onSearchChange,
   onToggleOverdue,
   onToggleTag,
@@ -108,6 +114,19 @@ const FilterBar = ({
       {hasActiveFilters && (
         <Button variant="ghost" size="sm" onClick={onClear} className="text-muted-foreground">
           {t("filter.clear")}
+        </Button>
+      )}
+
+      {completedCount > 0 && onArchive && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isArchiving}
+          onClick={onArchive}
+          className="sm:ml-auto gap-1.5"
+        >
+          <Archive className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{t("todo.archiveCompleted")}</span>
         </Button>
       )}
     </div>
