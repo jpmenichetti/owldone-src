@@ -171,39 +171,31 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container max-w-4xl py-6 space-y-6">
-        <FilterBar
-          showOverdue={showOverdue}
-          selectedTags={selectedTags}
-          allTags={allTags}
-          hasActiveFilters={hasActiveFilters}
-          searchText={searchText}
-          isSaving={savingSource === "overdue"}
-          isSavingTags={savingSource === "tag"}
-          onSearchChange={setSearchText}
-          onToggleOverdue={toggleOverdue}
-          onToggleTag={toggleTag}
-          onClear={clearFilters}
-        />
         {(() => {
           const completedIds = filteredTodos.filter((t) => t.completed).map((t) => t.id);
-          return completedIds.length > 0 ? (
-            <div className="flex justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={archiveCompleted.isPending}
-                onClick={() => {
-                  const count = completedIds.length;
-                  archiveCompleted.mutate(completedIds, {
-                    onSuccess: () => toast(t("todo.archivedCount").replace("{count}", String(count))),
-                  });
-                }}
-              >
-                <Archive className="h-4 w-4 mr-1.5" />
-                {t("todo.archiveCompleted")}
-              </Button>
-            </div>
-          ) : null;
+          return (
+            <FilterBar
+              showOverdue={showOverdue}
+              selectedTags={selectedTags}
+              allTags={allTags}
+              hasActiveFilters={hasActiveFilters}
+              searchText={searchText}
+              isSaving={savingSource === "overdue"}
+              isSavingTags={savingSource === "tag"}
+              onSearchChange={setSearchText}
+              onToggleOverdue={toggleOverdue}
+              onToggleTag={toggleTag}
+              onClear={clearFilters}
+              completedCount={completedIds.length}
+              isArchiving={archiveCompleted.isPending}
+              onArchive={() => {
+                const count = completedIds.length;
+                archiveCompleted.mutate(completedIds, {
+                  onSuccess: () => toast(t("todo.archivedCount").replace("{count}", String(count))),
+                });
+              }}
+            />
+          );
         })()}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
