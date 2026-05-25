@@ -14,6 +14,9 @@ interface FilterBarProps {
   searchText: string;
   isSaving?: boolean;
   isSavingTags?: boolean;
+  completedCount?: number;
+  isArchiving?: boolean;
+  onArchive?: () => void;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
