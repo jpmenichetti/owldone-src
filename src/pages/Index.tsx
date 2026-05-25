@@ -12,8 +12,6 @@ import CategorySection from "@/components/CategorySection";
 import ArchiveSection from "@/components/ArchiveSection";
 import TodoDetailDialog from "@/components/TodoDetailDialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
-import { Archive } from "lucide-react";
 import { toast } from "sonner";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, TouchSensor, useSensor, useSensors, defaultDropAnimationSideEffects } from "@dnd-kit/core";
 import TodoCard from "@/components/TodoCard";
