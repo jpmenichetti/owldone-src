@@ -61,6 +61,62 @@ function logLatency(
 }
 
 // ============================================================
+// Validation
+// ============================================================
+const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
+const VALID_RECURRENCE = ["daily", "weekly", "monthly"];
+const LIMITS = {
+  text: 2000,
+  notes: 50000,
+  tags: 50,
+  tagLen: 100,
+  urls: 20,
+  urlLen: 2000,
+};
+
+function bad(message: string): never {
+  throw { status: 400, message };
+}
+
+function validateTodoFields(
+  f: Record<string, unknown>,
+  opts: { requireText?: boolean; requireCategory?: boolean } = {},
+) {
+  if (opts.requireText || f.text !== undefined) {
+    if (typeof f.text !== "string" || f.text.trim().length === 0) bad("Invalid text");
+    if ((f.text as string).length > LIMITS.text) bad(`Text exceeds ${LIMITS.text} chars`);
+  }
+  if (opts.requireCategory || f.category !== undefined) {
+    if (typeof f.category !== "string" || !VALID_CATEGORIES.includes(f.category)) {
+      bad("Invalid category");
+    }
+  }
+  if (f.notes !== undefined && f.notes !== null) {
+    if (typeof f.notes !== "string") bad("Invalid notes");
+    if ((f.notes as string).length > LIMITS.notes) bad(`Notes exceeds ${LIMITS.notes} chars`);
+  }
+  if (f.tags !== undefined && f.tags !== null) {
+    if (!Array.isArray(f.tags)) bad("Invalid tags");
+    if (f.tags.length > LIMITS.tags) bad(`Too many tags (max ${LIMITS.tags})`);
+    for (const t of f.tags) {
+      if (typeof t !== "string" || t.length > LIMITS.tagLen) bad("Invalid tag value");
+    }
+  }
+  if (f.urls !== undefined && f.urls !== null) {
+    if (!Array.isArray(f.urls)) bad("Invalid urls");
+    if (f.urls.length > LIMITS.urls) bad(`Too many urls (max ${LIMITS.urls})`);
+    for (const u of f.urls) {
+      if (typeof u !== "string" || u.length > LIMITS.urlLen) bad("Invalid url value");
+    }
+  }
+  if (f.recurrence !== undefined && f.recurrence !== null) {
+    if (typeof f.recurrence !== "string" || !VALID_RECURRENCE.includes(f.recurrence)) {
+      bad("Invalid recurrence");
+    }
+  }
+}
+
+// ============================================================
 // Handler type
 // ============================================================
 type Ctx = { db: DbClient; userId: string; params: any };
