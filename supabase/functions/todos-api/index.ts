@@ -218,6 +218,7 @@ export async function countArchived({ db, userId, params }: Ctx): Promise<Respon
 
 export async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { text, category } = params;
+  validateTodoFields({ text, category }, { requireText: true, requireCategory: true });
   const { data: inserted, error } = await db
     .from("todos")
     .insert({ text, category, user_id: userId })
