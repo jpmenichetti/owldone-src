@@ -16,8 +16,10 @@ const CSV_HEADERS = [
 
 function escapeCsvValue(value: string | null | undefined): string {
   if (value == null) return "";
-  const str = String(value);
-  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+  let str = String(value);
+  // Neutralise spreadsheet formula injection by prefixing a tab to risky values.
+  if (/^[=+\-@\t\r]/.test(str)) str = "\t" + str;
+  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r") || str.includes("\t")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
   return str;
