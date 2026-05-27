@@ -468,3 +468,369 @@ Deno.test("addTodo propagates DB errors", async () => {
   }
   assertEquals(caught?.message, "boom");
 });
+
+// ============================================================
+// Edge cases: validation + resource limits
+// ============================================================
+
+async function expectBadRequest(fn: () => Promise<unknown>, matcher?: RegExp) {
+  let caught: any = null;
+  try {
+    await fn();
+  } catch (e) {
+    caught = e;
+  }
+  assert(caught, "expected handler to throw");
+  assertEquals(caught.status, 400);
+  if (matcher) assert(matcher.test(String(caught.message)), `message: ${caught.message}`);
+}
+
+function noopDb() {
+  return buildMockDb({ todos: () => ({ data: { id: "x" }, error: null }) }, []);
+}
+
+// ---------- addTodo validation ----------
+
+Deno.test("addTodo rejects empty text", async () => {
+  await expectBadRequest(
+    () => addTodo({ db: noopDb(), userId: USER_ID, params: { text: "   ", category: "today" } }),
+    /text/i,
+  );
+});
+
+Deno.test("addTodo rejects missing text", async () => {
+  await expectBadRequest(
+    () => addTodo({ db: noopDb(), userId: USER_ID, params: { category: "today" } }),
+    /text/i,
+  );
+});
+
+Deno.test("addTodo rejects text over 2000 chars", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { text: "a".repeat(2001), category: "today" },
+    }),
+    /text/i,
+  );
+});
+
+Deno.test("addTodo rejects unknown category", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { text: "hi", category: "someday" },
+    }),
+    /category/i,
+  );
+});
+
+Deno.test("addTodo rejects missing category", async () => {
+  await expectBadRequest(
+    () => addTodo({ db: noopDb(), userId: USER_ID, params: { text: "hi" } }),
+    /category/i,
+  );
+});
+
+// ---------- updateTodo validation + whitelist ----------
+
+Deno.test("updateTodo throws when id missing", async () => {
+  await expectBadRequest(
+    () => updateTodo({ db: noopDb(), userId: USER_ID, params: { text: "x" } }),
+    /id/i,
+  );
+});
+
+Deno.test("updateTodo throws when no whitelisted fields present", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", foo: "bar", user_id: "other" },
+    }),
+    /no valid fields/i,
+  );
+});
+
+Deno.test("updateTodo drops non-whitelisted keys before DB write", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+
+  const res = await updateTodo({
+    db,
+    userId: USER_ID,
+    params: {
+      id: "t1",
+      text: "ok",
+      foo: "bar",
+      user_id: "attacker",
+      next_recurrence_at: "1970-01-01",
+      recurring_source_id: "x",
+    },
+  });
+  await readJson(res);
+
+  const updateCall = calls.find((c) => c.op === "update")!;
+  const payload = updateCall.args[0] as Record<string, unknown>;
+  assertEquals(payload.text, "ok");
+  assertEquals(payload.next_recurrence_at, "1970-01-01");
+  assert(!("foo" in payload));
+  assert(!("user_id" in payload));
+  assert(!("recurring_source_id" in payload));
+});
+
+Deno.test("updateTodo validates supplied category", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", category: "someday" },
+    }),
+    /category/i,
+  );
+});
+
+Deno.test("updateTodo rejects notes over 50000 chars", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", notes: "n".repeat(50001) },
+    }),
+    /notes/i,
+  );
+});
+
+// ---------- tag / url / recurrence validation ----------
+
+Deno.test("validation rejects too many tags", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: {
+        text: "x",
+        category: "today",
+        tags: Array.from({ length: 51 }, (_, i) => `t${i}`),
+      },
+    }),
+    /tags/i,
+  );
+});
+
+Deno.test("validation rejects oversized tag string", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { text: "x", category: "today", tags: ["a".repeat(101)] },
+    }),
+    /tag/i,
+  );
+});
+
+Deno.test("validation rejects too many urls", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: {
+        text: "x",
+        category: "today",
+        urls: Array.from({ length: 21 }, (_, i) => `https://e.com/${i}`),
+      },
+    }),
+    /urls/i,
+  );
+});
+
+Deno.test("validation rejects oversized url string", async () => {
+  await expectBadRequest(
+    () => addTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { text: "x", category: "today", urls: ["a".repeat(2001)] },
+    }),
+    /url/i,
+  );
+});
+
+Deno.test("validation rejects invalid recurrence", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", recurrence: "yearly" },
+    }),
+    /recurrence/i,
+  );
+});
+
+Deno.test("validation accepts null recurrence", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+  const res = await updateTodo({
+    db,
+    userId: USER_ID,
+    params: { id: "t1", recurrence: null },
+  });
+  await readJson(res);
+  const updateCall = calls.find((c) => c.op === "update")!;
+  assertEquals((updateCall.args[0] as any).recurrence, null);
+});
+
+// ---------- bulkInsert edge cases ----------
+
+Deno.test("bulkInsert rejects non-array todos", async () => {
+  await expectBadRequest(
+    () => bulkInsert({ db: noopDb(), userId: USER_ID, params: { todos: "nope" } }),
+    /todos/i,
+  );
+});
+
+Deno.test("bulkInsert rejects over 2000 todos", async () => {
+  const todos = Array.from({ length: 2001 }, () => ({ text: "x", category: "today" }));
+  await expectBadRequest(
+    () => bulkInsert({ db: noopDb(), userId: USER_ID, params: { todos } }),
+    /too many/i,
+  );
+});
+
+Deno.test("bulkInsert fails fast on any invalid item", async () => {
+  await expectBadRequest(
+    () => bulkInsert({
+      db: noopDb(),
+      userId: USER_ID,
+      params: {
+        todos: [
+          { text: "ok", category: "today" },
+          { text: "bad", category: "invalid" },
+        ],
+      },
+    }),
+    /category/i,
+  );
+});
+
+Deno.test("bulkInsert whitelist drops injected fields", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+
+  await bulkInsert({
+    db,
+    userId: USER_ID,
+    params: {
+      todos: [
+        {
+          text: "t",
+          category: "today",
+          id: "attacker-uuid",
+          created_at: "1970-01-01",
+          updated_at: "1970-01-01",
+          next_recurrence_at: "1970-01-01",
+          recurring_source_id: "x",
+          user_id: "attacker",
+        },
+      ],
+    },
+  });
+
+  const insertCall = calls.find((c) => c.op === "insert")!;
+  const row = (insertCall.args[0] as any[])[0];
+  assertEquals(row.user_id, USER_ID);
+  assertEquals(row.text, "t");
+  assert(!("id" in row));
+  assert(!("created_at" in row));
+  assert(!("updated_at" in row));
+  assert(!("next_recurrence_at" in row));
+  assert(!("recurring_source_id" in row));
+});
+
+// ---------- deletePermanent / archiveCompleted limits ----------
+
+Deno.test("deletePermanent rejects non-array ids", async () => {
+  await expectBadRequest(
+    () => deletePermanent({ db: noopDb(), userId: USER_ID, params: { ids: "nope" } }),
+    /ids/i,
+  );
+});
+
+Deno.test("deletePermanent rejects over 1000 ids", async () => {
+  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
+  await expectBadRequest(
+    () => deletePermanent({ db: noopDb(), userId: USER_ID, params: { ids } }),
+    /too many/i,
+  );
+});
+
+Deno.test("archiveCompleted rejects over 1000 ids", async () => {
+  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
+  await expectBadRequest(
+    () => archiveCompleted({ db: noopDb(), userId: USER_ID, params: { ids } }),
+    /too many/i,
+  );
+});
+
+// ---------- autoTransitions limits + batching ----------
+
+Deno.test("autoTransitions rejects over 1000 idsToArchive", async () => {
+  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
+  await expectBadRequest(
+    () => autoTransitions({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { idsToArchive: ids, idsToMoveToThisWeek: [] },
+    }),
+    /too many/i,
+  );
+});
+
+Deno.test("autoTransitions rejects over 1000 idsToMoveToThisWeek", async () => {
+  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
+  await expectBadRequest(
+    () => autoTransitions({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { idsToArchive: [], idsToMoveToThisWeek: ids },
+    }),
+    /too many/i,
+  );
+});
+
+Deno.test("autoTransitions batches large id arrays via .in()", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+
+  const idsToArchive = Array.from({ length: 750 }, (_, i) => `a${i}`);
+  const idsToMoveToThisWeek = Array.from({ length: 600 }, (_, i) => `m${i}`);
+
+  await autoTransitions({
+    db,
+    userId: USER_ID,
+    params: { idsToArchive, idsToMoveToThisWeek },
+  });
+
+  const updateCalls = calls.filter((c) => c.op === "update");
+  assertEquals(updateCalls.length, 4);
+  const inSizes = updateCalls
+    .map((c) => c.filters.find((f) => f.method === "in")!.args[1].length)
+    .sort((a, b) => a - b);
+  assertEquals(inSizes, [100, 250, 500, 500]);
+});
+
+Deno.test("autoTransitions skips category-move when idsToMoveToThisWeek undefined", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+
+  await autoTransitions({
+    db,
+    userId: USER_ID,
+    params: { idsToArchive: ["a1"] },
+  });
+
+  const updateCalls = calls.filter((c) => c.op === "update");
+  assertEquals(updateCalls.length, 1);
+  assertEquals((updateCalls[0].args[0] as any).removed, true);
+});
