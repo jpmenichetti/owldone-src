@@ -176,6 +176,7 @@ const ALLOWED_UPDATE_FIELDS = [
   "completed", "completed_at",
   "removed", "removed_at",
   "recurrence", "next_recurrence_at",
+  "created_at",
 ] as const;
 
 export async function updateTodo({ db, userId, params }: Ctx): Promise<Response> {
