@@ -37,26 +37,29 @@ export function useTrackGoogleLanding() {
       // Mark immediately so reloads / re-renders don't double-fire
       sessionStorage.setItem(SESSION_FLAG, "1");
 
-      supabase.functions
-        .invoke("log-landing-visit", {
-          body: {
-            source,
-            landing_path: window.location.pathname || "/",
-            gclid: gclid || undefined,
-            utm_source: utm_source || undefined,
-            utm_medium: utm_medium || undefined,
-            utm_campaign: utm_campaign || undefined,
-            utm_term: utm_term || undefined,
-            utm_content: utm_content || undefined,
-            referrer: referrer.slice(0, 2048) || undefined,
-            language: navigator.language || undefined,
-          },
-        })
-        .then(() => {})
-        .catch(() => {
-          // Allow retry next session if it failed
-          sessionStorage.removeItem(SESSION_FLAG);
-        });
+      computeLandingToken().then((token) => {
+        supabase.functions
+          .invoke("log-landing-visit", {
+            headers: { "x-landing-token": token },
+            body: {
+              source,
+              landing_path: window.location.pathname || "/",
+              gclid: gclid || undefined,
+              utm_source: utm_source || undefined,
+              utm_medium: utm_medium || undefined,
+              utm_campaign: utm_campaign || undefined,
+              utm_term: utm_term || undefined,
+              utm_content: utm_content || undefined,
+              referrer: referrer.slice(0, 2048) || undefined,
+              language: navigator.language || undefined,
+            },
+          })
+          .then(() => {})
+          .catch(() => {
+            // Allow retry next session if it failed
+            sessionStorage.removeItem(SESSION_FLAG);
+          });
+      });
     } catch {
       // Never throw from a telemetry hook
     }
