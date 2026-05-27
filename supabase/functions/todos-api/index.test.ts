@@ -833,51 +833,51 @@ Deno.test("autoTransitions skips category-move when idsToMoveToThisWeek undefine
 
 // ---------- URL protocol allowlist ----------
 
-Deno.test("addTodo rejects javascript: URL", async () => {
+Deno.test("updateTodo rejects javascript: URL", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", urls: ["javascript:alert(1)"] },
+      params: { id: "t1", urls: ["javascript:alert(1)"] },
     }),
     /http or https/i,
   );
 });
 
-Deno.test("addTodo rejects data: URL", async () => {
+Deno.test("updateTodo rejects data: URL", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", urls: ["data:text/html,<script>"] },
+      params: { id: "t1", urls: ["data:text/html,<script>"] },
     }),
     /http or https/i,
   );
 });
 
-Deno.test("addTodo rejects file: URL", async () => {
+Deno.test("updateTodo rejects file: URL", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", urls: ["file:///etc/passwd"] },
+      params: { id: "t1", urls: ["file:///etc/passwd"] },
     }),
     /http or https/i,
   );
 });
 
-Deno.test("addTodo rejects malformed URL string", async () => {
+Deno.test("updateTodo rejects malformed URL string", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", urls: ["not a url"] },
+      params: { id: "t1", urls: ["not a url"] },
     }),
     /url/i,
   );
 });
 
-Deno.test("updateTodo rejects javascript: URL", async () => {
+Deno.test("updateTodo rejects bad URL even when mixed with good ones", async () => {
   await expectBadRequest(
     () => updateTodo({
       db: noopDb(),
@@ -904,20 +904,17 @@ Deno.test("bulkInsert rejects when any item has bad-protocol URL", async () => {
   );
 });
 
-Deno.test("addTodo accepts http and https URLs", async () => {
+Deno.test("updateTodo accepts http and https URLs", async () => {
   const calls: Call[] = [];
-  const db = buildMockDb(
-    { todos: () => ({ data: { id: "ok" }, error: null }) },
-    calls,
-  );
-  const res = await addTodo({
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+  const res = await updateTodo({
     db,
     userId: USER_ID,
     params: {
-      text: "x",
-      category: "today",
+      id: "t1",
       urls: ["http://example.com", "https://example.com/path?q=1"],
     },
   });
   assertEquals(res.status, 200);
 });
+
