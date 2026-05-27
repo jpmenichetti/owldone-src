@@ -39,19 +39,19 @@ const TodoCard = memo(function TodoCard({ todo, onToggle, onRemove, onOpen, read
       ref={setDragRef}
       style={style}
       className={cn(
-        "group relative flex items-start gap-3 rounded-lg border p-3 transition-all hover:shadow-sm cursor-pointer bg-background md:touch-none",
+        "group relative flex items-start gap-3 rounded-lg border p-3 transition-all hover:shadow-sm cursor-pointer bg-background",
         todo.completed && "opacity-60",
         overdue && "border-destructive/50 bg-destructive/5",
         isDragging && "opacity-0 pointer-events-none",
       )}
       onClick={() => !isDragging && onOpen(todo)}
-      {...(readOnly ? {} : listeners)}
-      {...(readOnly ? {} : attributes)}
     >
       {!readOnly && (
         <div
-          className="pt-1 cursor-grab active:cursor-grabbing text-muted-foreground/50 group-hover:text-muted-foreground"
-          aria-hidden="true"
+          className="pt-1 cursor-grab active:cursor-grabbing touch-none text-muted-foreground/50 group-hover:text-muted-foreground"
+          aria-label="Drag to reorder"
+          {...listeners}
+          {...attributes}
         >
           <GripVertical className="h-4 w-4" />
         </div>
