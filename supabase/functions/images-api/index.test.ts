@@ -47,7 +47,8 @@ Deno.test("isValidImageBytes returns false for non-image", () => {
 // ---------- filename sanitisation ----------
 
 Deno.test("sanitizeFileName: strips path separators", () => {
-  assertEquals(sanitizeFileName("../../etc/passwd"), "_._.._etc_passwd");
+  // Each '/' becomes '_'; the consecutive '..' is collapsed to '.' afterwards.
+  assertEquals(sanitizeFileName("../../etc/passwd"), "._._etc_passwd");
 });
 Deno.test("sanitizeFileName: collapses repeated dots", () => {
   assertEquals(sanitizeFileName("evil..jpg"), "evil.jpg");
@@ -56,7 +57,7 @@ Deno.test("sanitizeFileName: keeps allowed chars", () => {
   assertEquals(sanitizeFileName("My-Photo_2026.jpg"), "My-Photo_2026.jpg");
 });
 Deno.test("sanitizeFileName: replaces spaces and unicode", () => {
-  assertEquals(sanitizeFileName("photo café.png"), "photo_caf__.png");
+  assertEquals(sanitizeFileName("photo café.png"), "photo_caf_.png");
 });
 
 // ---------- uploadImage ----------
