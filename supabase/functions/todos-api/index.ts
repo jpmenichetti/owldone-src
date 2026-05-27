@@ -310,6 +310,10 @@ export async function deleteAll({ db, userId }: Ctx): Promise<Response> {
 
 export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response> {
   const { todos } = params;
+  if (!Array.isArray(todos)) throw { status: 400, message: "Invalid todos" };
+  for (const t of todos) {
+    validateTodoFields(t, { requireText: true, requireCategory: true });
+  }
   const rows = todos.map((t: any) => ({ ...t, user_id: userId }));
   for (let i = 0; i < rows.length; i += 500) {
     const batch = rows.slice(i, i + 500);
