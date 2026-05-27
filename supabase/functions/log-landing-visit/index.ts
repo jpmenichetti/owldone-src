@@ -1,13 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "https://esm.sh/zod@3.23.8";
 
-const corsHeaders = {
+export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-landing-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const BodySchema = z.object({
+export const BodySchema = z.object({
   source: z.enum(["google_ads", "google_organic"]),
   landing_path: z.string().max(2048).default("/"),
   gclid: z.string().max(512).nullish(),
@@ -21,11 +21,11 @@ const BodySchema = z.object({
 });
 
 // In-memory rate limit: 20 req/min per IP
-const RATE_LIMIT = 20;
-const WINDOW_MS = 60_000;
+export const RATE_LIMIT = 20;
+export const WINDOW_MS = 60_000;
 const buckets = new Map<string, { count: number; reset: number }>();
 
-function rateLimited(ip: string): boolean {
+export function rateLimited(ip: string): boolean {
   const now = Date.now();
   const b = buckets.get(ip);
   if (!b || b.reset < now) {
@@ -36,9 +36,14 @@ function rateLimited(ip: string): boolean {
   return b.count > RATE_LIMIT;
 }
 
+// Test helper — reset rate-limit state between Deno tests.
+export function _resetRateLimit() {
+  buckets.clear();
+}
+
 // Daily-rotating obfuscation token. Mirrors src/lib/landingToken.ts.
 const TOKEN_SEED = "owldone-landing-v1";
-async function expectedToken(): Promise<string> {
+export async function expectedToken(): Promise<string> {
   const d = new Date();
   const day = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
   const bytes = new TextEncoder().encode(`${TOKEN_SEED}:${day}`);
@@ -49,7 +54,14 @@ async function expectedToken(): Promise<string> {
     .slice(0, 32);
 }
 
-Deno.serve(async (req: Request) => {
+// Injectable client factory so tests can stub Supabase entirely.
+type ClientFactory = (url: string, key: string, opts?: any) => any;
+let _createClient: ClientFactory = createClient as any;
+export function _setClientFactory(fn: ClientFactory | null) {
+  _createClient = fn ?? (createClient as any);
+}
+
+export const handleRequest = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
@@ -95,7 +107,7 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
       try {
-        const userClient = createClient(
+        const userClient = _createClient(
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_ANON_KEY")!,
           { global: { headers: { Authorization: authHeader } } },
@@ -107,7 +119,7 @@ Deno.serve(async (req: Request) => {
 
     const userAgent = (req.headers.get("user-agent") || "").slice(0, 1024);
 
-    const service = createClient(
+    const service = _createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
@@ -145,4 +157,9 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+};
+
+// Only start the server when running as the entrypoint, not when imported by tests.
+if (import.meta.main) {
+  Deno.serve(handleRequest);
+}
