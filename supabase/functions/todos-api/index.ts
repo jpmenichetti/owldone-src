@@ -65,6 +65,7 @@ function logLatency(
 // ============================================================
 const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
 const VALID_RECURRENCE = ["daily", "weekly", "monthly"];
+const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
 const LIMITS = {
   text: 2000,
   notes: 50000,
