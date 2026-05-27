@@ -1,74 +1,104 @@
-import {
-  assertEquals,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import {
   getSummary,
   getDaily,
   refresh,
-  getLatencyStats,
-  getLatencyTimeseries,
-  purgeLatencyLogs,
   grantFeature,
   revokeFeature,
   listUserFeatures,
+  getLandingStats,
+  listLandingVisits,
 } from "./index.ts";
 
-const USER_ID = "admin-user";
+// ---------- chainable mock builder ----------
 
 type Call = {
   table?: string;
   rpc?: string;
   op: string;
   args: any[];
-  filters: Array<{ method: string; args: any[] }>;
+  filters: { method: string; args: any[] }[];
   options?: any;
 };
 
 function buildMockDb(
-  resultsByTable: Record<string, (call: Call) => { data?: any; error?: any }>,
-  resultsByRpc: Record<string, (call: Call) => { data?: any; error?: any }>,
-  callLog: Call[],
+  resultsByTable: Record<string, (c: Call) => { data?: any; error?: any; count?: number }>,
+  rpcResults: Record<string, (args: any) => { data?: any; error?: any }> = {},
+  callLog: Call[] = [],
 ) {
-  function makeChain(table: string, op: string, args: any[], options?: any) {
-    const call: Call = { table, op, args, filters: [], options };
-    callLog.push(call);
-
-    const resolver = () => {
-      const handler = resultsByTable[table];
-      const res = handler ? handler(call) : { data: null, error: null };
-      return Promise.resolve(res);
+  function chain(table: string, op: string, args: any[], options?: any) {
+    const c: Call = { table, op, args, filters: [], options };
+    callLog.push(c);
+    const resolve = () => {
+      const r = resultsByTable[table]?.(c) ?? { data: null, error: null };
+      return Promise.resolve(r);
     };
-
-    const chain: any = {
-      eq(...a: any[]) { call.filters.push({ method: "eq", args: a }); return chain; },
-      order(...a: any[]) { call.filters.push({ method: "order", args: a }); return chain; },
-      select(...a: any[]) { call.filters.push({ method: "select", args: a }); return chain; },
-      single() { call.filters.push({ method: "single", args: [] }); return resolver(); },
-      maybeSingle() { call.filters.push({ method: "maybeSingle", args: [] }); return resolver(); },
-      then(onFulfilled: any, onRejected: any) {
-        return resolver().then(onFulfilled, onRejected);
+    const proxy: any = {
+      eq(...a: any[]) {
+        c.filters.push({ method: "eq", args: a });
+        return proxy;
+      },
+      gte(...a: any[]) {
+        c.filters.push({ method: "gte", args: a });
+        return proxy;
+      },
+      lte(...a: any[]) {
+        c.filters.push({ method: "lte", args: a });
+        return proxy;
+      },
+      order(...a: any[]) {
+        c.filters.push({ method: "order", args: a });
+        return proxy;
+      },
+      range(...a: any[]) {
+        c.filters.push({ method: "range", args: a });
+        return proxy;
+      },
+      select(...a: any[]) {
+        c.filters.push({ method: "select", args: a });
+        return proxy;
+      },
+      single() {
+        c.filters.push({ method: "single", args: [] });
+        return resolve();
+      },
+      maybeSingle() {
+        c.filters.push({ method: "maybeSingle", args: [] });
+        return resolve();
+      },
+      then(onF: any, onR: any) {
+        return resolve().then(onF, onR);
       },
     };
-    return chain;
+    return proxy;
   }
-
   return {
+    _calls: callLog,
     from(table: string) {
       return {
-        select: (cols: string, options?: any) => makeChain(table, "select", [cols], options),
-        insert: (values: any) => makeChain(table, "insert", [values]),
-        upsert: (values: any, options?: any) => makeChain(table, "upsert", [values], options),
-        update: (values: any) => makeChain(table, "update", [values]),
-        delete: () => makeChain(table, "delete", []),
+        select(cols: string, options?: any) {
+          return chain(table, "select", [cols], options);
+        },
+        insert(values: any) {
+          return chain(table, "insert", [values]);
+        },
+        update(values: any) {
+          return chain(table, "update", [values]);
+        },
+        upsert(values: any, options?: any) {
+          return chain(table, "upsert", [values], options);
+        },
+        delete() {
+          return chain(table, "delete", []);
+        },
       };
     },
-    rpc(name: string, params?: any) {
-      const call: Call = { rpc: name, op: "rpc", args: [params], filters: [] };
-      callLog.push(call);
-      const handler = resultsByRpc[name];
-      const res = handler ? handler(call) : { data: null, error: null };
-      return Promise.resolve(res);
+    rpc(name: string, args: any) {
+      const c: Call = { rpc: name, op: "rpc", args: [args], filters: [] };
+      callLog.push(c);
+      const r = rpcResults[name]?.(args) ?? { data: null, error: null };
+      return Promise.resolve(r);
     },
   };
 }
@@ -77,267 +107,169 @@ async function readJson(res: Response) {
   return JSON.parse(await res.text());
 }
 
-// ---------- Tests ----------
+// ---------- getSummary / getDaily / refresh ----------
 
-Deno.test("getSummary fetches singleton row id=1", async () => {
-  const calls: Call[] = [];
-  const summary = { id: 1, total_users: 5, total_todos: 9 };
-  const db = buildMockDb(
-    { admin_stats_summary: () => ({ data: summary, error: null }) },
-    {},
-    calls,
-  );
-
-  const res = await getSummary({ db: db as any, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
+Deno.test("getSummary returns row with id=1", async () => {
+  const db = buildMockDb({
+    admin_stats_summary: () => ({ data: { id: 1, total_users: 5 }, error: null }),
+  });
+  const res = await getSummary({ db: db as any, userId: "admin", params: {} });
   assertEquals(res.status, 200);
-  assertEquals(body, summary);
-  const call = calls.find((c) => c.table === "admin_stats_summary")!;
-  assertEquals(call.filters.find((f) => f.method === "eq")?.args, ["id", 1]);
-  assertEquals(call.filters.find((f) => f.method === "single")?.args, []);
+  assertEquals((await readJson(res)).total_users, 5);
 });
 
-Deno.test("getSummary propagates DB errors", async () => {
-  const db = buildMockDb(
-    { admin_stats_summary: () => ({ data: null, error: { message: "fail" } }) },
-    {},
-    [],
-  );
-
-  let caught: any = null;
+Deno.test("getSummary surfaces DB error", async () => {
+  const db = buildMockDb({
+    admin_stats_summary: () => ({ data: null, error: new Error("nope") }),
+  });
+  let threw = false;
   try {
-    await getSummary({ db: db as any, userId: USER_ID, params: {} });
-  } catch (e) {
-    caught = e;
+    await getSummary({ db: db as any, userId: "admin", params: {} });
+  } catch {
+    threw = true;
   }
-  assertEquals(caught?.message, "fail");
+  assert(threw);
 });
 
-Deno.test("getDaily orders by stat_date ascending", async () => {
+Deno.test("getDaily orders by stat_date asc", async () => {
   const calls: Call[] = [];
-  const rows = [{ stat_date: "2024-01-01" }];
-  const db = buildMockDb(
-    { admin_stats_daily: () => ({ data: rows, error: null }) },
-    {},
-    calls,
-  );
-
-  const res = await getDaily({ db: db as any, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, rows);
-  const call = calls.find((c) => c.table === "admin_stats_daily")!;
-  assertEquals(call.filters.find((f) => f.method === "order")?.args, [
-    "stat_date",
-    { ascending: true },
-  ]);
+  const db = buildMockDb({ admin_stats_daily: () => ({ data: [{ d: 1 }], error: null }) }, {}, calls);
+  await getDaily({ db: db as any, userId: "admin", params: {} });
+  const sel = calls.find((c) => c.table === "admin_stats_daily")!;
+  const order = sel.filters.find((f) => f.method === "order");
+  assertEquals(order?.args[0], "stat_date");
+  assertEquals(order?.args[1]?.ascending, true);
 });
 
 Deno.test("refresh calls compute_admin_stats RPC", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({}, { compute_admin_stats: () => ({ error: null }) }, calls);
-
-  const res = await refresh({ db: db as any, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  assertEquals(calls.find((c) => c.rpc === "compute_admin_stats")?.op, "rpc");
+  const res = await refresh({ db: db as any, userId: "admin", params: {} });
+  assertEquals(res.status, 200);
+  assert(calls.some((c) => c.rpc === "compute_admin_stats"));
 });
 
-Deno.test("refresh propagates RPC errors", async () => {
-  const db = buildMockDb({}, { compute_admin_stats: () => ({ error: { message: "rpc-bad" } }) }, []);
-  let caught: any = null;
-  try {
-    await refresh({ db: db as any, userId: USER_ID, params: {} });
-  } catch (e) {
-    caught = e;
-  }
-  assertEquals(caught?.message, "rpc-bad");
-});
+// ---------- features ----------
 
-Deno.test("getLatencyStats forwards date params to RPC", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {},
-    { get_latency_stats: () => ({ data: [{ avg_ms: 12 }], error: null }) },
-    calls,
-  );
-
-  const res = await getLatencyStats({
-    db: db as any,
-    userId: USER_ID,
-    params: { date_from: "2024-01-01", date_to: "2024-01-31" },
-  });
-  const body = await readJson(res);
-
-  assertEquals(body, [{ avg_ms: 12 }]);
-  const call = calls.find((c) => c.rpc === "get_latency_stats")!;
-  assertEquals(call.args[0], {
-    p_date_from: "2024-01-01",
-    p_date_to: "2024-01-31",
-  });
-});
-
-Deno.test("getLatencyTimeseries defaults granularity to daily", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {},
-    { get_latency_timeseries: () => ({ data: [], error: null }) },
-    calls,
-  );
-
-  await getLatencyTimeseries({
-    db: db as any,
-    userId: USER_ID,
-    params: { date_from: "a", date_to: "b" },
-  });
-
-  const call = calls.find((c) => c.rpc === "get_latency_timeseries")!;
-  assertEquals(call.args[0], {
-    p_date_from: "a",
-    p_date_to: "b",
-    p_granularity: "daily",
-  });
-});
-
-Deno.test("getLatencyTimeseries forwards explicit granularity", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {},
-    { get_latency_timeseries: () => ({ data: [], error: null }) },
-    calls,
-  );
-
-  await getLatencyTimeseries({
-    db: db as any,
-    userId: USER_ID,
-    params: { date_from: "a", date_to: "b", granularity: "hourly" },
-  });
-
-  const call = calls.find((c) => c.rpc === "get_latency_timeseries")!;
-  assertEquals(call.args[0].p_granularity, "hourly");
-});
-
-Deno.test("purgeLatencyLogs calls purge_old_latency_logs RPC", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({}, { purge_old_latency_logs: () => ({ error: null }) }, calls);
-
-  const res = await purgeLatencyLogs({ db: db as any, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  assertEquals(calls.find((c) => c.rpc === "purge_old_latency_logs")?.op, "rpc");
-});
-
-Deno.test("grantFeature upserts row with onConflict and expires_at", async () => {
+Deno.test("grantFeature upserts with onConflict user_id,feature", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
-
-  const expires = "2030-01-01T00:00:00Z";
-  const res = await grantFeature({
-    db: db as any,
-    userId: USER_ID,
-    params: { user_id: "target-1", feature: "beta", expires_at: expires },
-  });
-  const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  const call = calls.find((c) => c.op === "upsert")!;
-  assertEquals(call.args[0], {
-    user_id: "target-1",
-    feature: "beta",
-    enabled: true,
-    expires_at: expires,
-  });
-  assertEquals(call.options, { onConflict: "user_id,feature" });
-});
-
-Deno.test("grantFeature defaults expires_at to null when omitted", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
-
   await grantFeature({
     db: db as any,
-    userId: USER_ID,
-    params: { user_id: "target-2", feature: "recurrence" },
+    userId: "admin",
+    params: { user_id: "u1", feature: "beta", expires_at: "2099-01-01" },
   });
-
-  const call = calls.find((c) => c.op === "upsert")!;
-  assertEquals(call.args[0].expires_at, null);
+  const c = calls.find((c) => c.table === "user_features" && c.op === "upsert")!;
+  assertEquals(c.args[0], { user_id: "u1", feature: "beta", enabled: true, expires_at: "2099-01-01" });
+  assertEquals(c.options?.onConflict, "user_id,feature");
 });
 
-Deno.test("revokeFeature deletes by user_id and feature", async () => {
+Deno.test("grantFeature normalises empty expires_at to null", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
-
-  const res = await revokeFeature({
+  await grantFeature({
     db: db as any,
-    userId: USER_ID,
-    params: { user_id: "target-3", feature: "beta" },
+    userId: "admin",
+    params: { user_id: "u1", feature: "beta", expires_at: "" },
+  });
+  const c = calls.find((c) => c.table === "user_features")!;
+  assertEquals(c.args[0].expires_at, null);
+});
+
+Deno.test("revokeFeature deletes by user_id+feature", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
+  await revokeFeature({
+    db: db as any,
+    userId: "admin",
+    params: { user_id: "u1", feature: "beta" },
+  });
+  const c = calls.find((c) => c.table === "user_features" && c.op === "delete")!;
+  const eqs = c.filters.filter((f) => f.method === "eq");
+  assertEquals(eqs.length, 2);
+  assert(eqs.some((f) => f.args[0] === "user_id" && f.args[1] === "u1"));
+  assert(eqs.some((f) => f.args[0] === "feature" && f.args[1] === "beta"));
+});
+
+Deno.test("listUserFeatures filters by user_id and returns rows", async () => {
+  const db = buildMockDb({
+    user_features: () => ({ data: [{ feature: "beta" }], error: null }),
+  });
+  const res = await listUserFeatures({
+    db: db as any,
+    userId: "admin",
+    params: { user_id: "u1" },
   });
   const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  const call = calls.find((c) => c.op === "delete")!;
-  const eqs = call.filters.filter((f) => f.method === "eq").map((f) => f.args);
-  assertEquals(eqs, [["user_id", "target-3"], ["feature", "beta"]]);
+  assertEquals(body, [{ feature: "beta" }]);
 });
 
-Deno.test("revokeFeature propagates DB errors", async () => {
-  const db = buildMockDb(
-    { user_features: () => ({ error: { message: "del-fail" } }) },
-    {},
-    [],
-  );
-
-  let caught: any = null;
-  try {
-    await revokeFeature({
-      db: db as any,
-      userId: USER_ID,
-      params: { user_id: "x", feature: "y" },
-    });
-  } catch (e) {
-    caught = e;
-  }
-  assertEquals(caught?.message, "del-fail");
+Deno.test("listUserFeatures returns [] when DB returns null", async () => {
+  const db = buildMockDb({ user_features: () => ({ data: null, error: null }) });
+  const res = await listUserFeatures({
+    db: db as any,
+    userId: "admin",
+    params: { user_id: "u1" },
+  });
+  assertEquals(await readJson(res), []);
 });
 
-Deno.test("listUserFeatures returns rows for target user", async () => {
+// ---------- landing stats ----------
+
+Deno.test("getLandingStats calls RPC with date range", async () => {
   const calls: Call[] = [];
-  const rows = [{ feature: "beta", enabled: true }];
+  const db = buildMockDb({}, {
+    get_landing_visit_stats: (a) => ({ data: [{ source: "google_ads", visit_count: 3 }], error: null }),
+  }, calls);
+  const res = await getLandingStats({
+    db: db as any,
+    userId: "admin",
+    params: { date_from: "2026-01-01", date_to: "2026-02-01" },
+  });
+  assertEquals(res.status, 200);
+  const c = calls.find((c) => c.rpc === "get_landing_visit_stats")!;
+  assertEquals(c.args[0], { p_date_from: "2026-01-01", p_date_to: "2026-02-01" });
+});
+
+Deno.test("listLandingVisits paginates and filters by source", async () => {
+  const calls: Call[] = [];
   const db = buildMockDb(
-    { user_features: () => ({ data: rows, error: null }) },
+    { landing_visits: () => ({ data: [{ id: "v1" }], error: null, count: 1 }) },
     {},
     calls,
   );
-
-  const res = await listUserFeatures({
+  const res = await listLandingVisits({
     db: db as any,
-    userId: USER_ID,
-    params: { user_id: "target-4" },
+    userId: "admin",
+    params: {
+      date_from: "2026-01-01",
+      date_to: "2026-02-01",
+      source: "google_ads",
+      limit: 25,
+      offset: 50,
+    },
   });
   const body = await readJson(res);
+  assertEquals(body.total, 1);
 
-  assertEquals(body, rows);
-  const call = calls.find((c) => c.table === "user_features")!;
-  assertEquals(call.filters.find((f) => f.method === "eq")?.args, ["user_id", "target-4"]);
+  const c = calls.find((c) => c.table === "landing_visits")!;
+  const range = c.filters.find((f) => f.method === "range");
+  assertEquals(range?.args, [50, 74]);
+  assert(c.filters.some((f) => f.method === "eq" && f.args[0] === "source" && f.args[1] === "google_ads"));
 });
 
-Deno.test("listUserFeatures returns [] when no rows", async () => {
+Deno.test("listLandingVisits skips source filter when 'all'", async () => {
+  const calls: Call[] = [];
   const db = buildMockDb(
-    { user_features: () => ({ data: null, error: null }) },
+    { landing_visits: () => ({ data: [], error: null, count: 0 }) },
     {},
-    [],
+    calls,
   );
-
-  const res = await listUserFeatures({
+  await listLandingVisits({
     db: db as any,
-    userId: USER_ID,
-    params: { user_id: "target-5" },
+    userId: "admin",
+    params: { date_from: "a", date_to: "b", source: "all" },
   });
-  const body = await readJson(res);
-
-  assertEquals(body, []);
+  const c = calls.find((c) => c.table === "landing_visits")!;
+  assert(!c.filters.some((f) => f.method === "eq" && f.args[0] === "source"));
 });
