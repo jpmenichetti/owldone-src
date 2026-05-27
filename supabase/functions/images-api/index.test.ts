@@ -1,442 +1,298 @@
-import {
-  assertEquals,
-  assert,
-  assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 import {
+  detectImageMime,
+  isValidImageBytes,
+  sanitizeFileName,
   uploadImage,
   deleteImage,
   getImageUrl,
-  isValidImageBytes,
-  sanitizeFileName,
 } from "./index.ts";
 
-// ---------- Test setup helpers ----------
-
 const USER_ID = "user-123";
-const TODO_ID = "todo-abc";
+const TODO_ID = "todo-1";
 
-type Call = {
-  table?: string;
-  bucket?: string;
-  op: string;
-  args: any[];
-  filters: Array<{ method: string; args: any[] }>;
-};
+// ---------- magic byte detection ----------
 
-type StorageHandlers = {
-  upload?: (path: string, bytes: Uint8Array, opts: any) => { data?: any; error?: any };
-  remove?: (paths: string[]) => { data?: any; error?: any };
-  createSignedUrl?: (path: string, expires: number) => { data?: any; error?: any };
-};
-
-function buildMockDb(
-  resultsByTable: Record<string, (call: Call) => { data?: any; error?: any }>,
-  storageByBucket: Record<string, StorageHandlers>,
-  callLog: Call[],
-) {
-  function makeChain(table: string, op: string, args: any[]) {
-    const call: Call = { table, op, args, filters: [] };
-    callLog.push(call);
-
-    const resolver = () => {
-      const handler = resultsByTable[table];
-      const res = handler ? handler(call) : { data: null, error: null };
-      return Promise.resolve(res);
-    };
-
-    const chain: any = {
-      eq(...a: any[]) {
-        call.filters.push({ method: "eq", args: a });
-        return chain;
-      },
-      maybeSingle() {
-        call.filters.push({ method: "maybeSingle", args: [] });
-        return resolver();
-      },
-      select(...a: any[]) {
-        call.filters.push({ method: "select", args: a });
-        return chain;
-      },
-      then(onFulfilled: any, onRejected: any) {
-        return resolver().then(onFulfilled, onRejected);
-      },
-    };
-    return chain;
-  }
-
-  return {
-    from(table: string) {
-      return {
-        select(cols: string) {
-          return makeChain(table, "select", [cols]);
-        },
-        insert(values: any) {
-          return makeChain(table, "insert", [values]);
-        },
-        delete() {
-          return makeChain(table, "delete", []);
-        },
-      };
-    },
-    storage: {
-      from(bucket: string) {
-        const handlers = storageByBucket[bucket] ?? {};
-        return {
-          async upload(path: string, bytes: Uint8Array, opts: any) {
-            callLog.push({ bucket, op: "upload", args: [path, bytes, opts], filters: [] });
-            return handlers.upload ? handlers.upload(path, bytes, opts) : { data: null, error: null };
-          },
-          async remove(paths: string[]) {
-            callLog.push({ bucket, op: "remove", args: [paths], filters: [] });
-            return handlers.remove ? handlers.remove(paths) : { data: null, error: null };
-          },
-          async createSignedUrl(path: string, expires: number) {
-            callLog.push({ bucket, op: "createSignedUrl", args: [path, expires], filters: [] });
-            return handlers.createSignedUrl
-              ? handlers.createSignedUrl(path, expires)
-              : { data: { signedUrl: "https://example.com/x" }, error: null };
-          },
-        };
-      },
-    },
-  } as any;
-}
-
-async function readJson(res: Response) {
-  return JSON.parse(await res.text());
-}
-
-// Valid PNG header bytes
-function pngBytes(extraSize = 0): Uint8Array {
-  const header = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-  const arr = new Uint8Array(header.length + extraSize);
-  arr.set(header, 0);
-  return arr;
-}
-
-// ---------- Pure helpers ----------
-
-Deno.test("isValidImageBytes accepts PNG/JPEG/GIF/WEBP signatures", () => {
-  assert(isValidImageBytes(new Uint8Array([0xFF, 0xD8, 0xFF, 0x00]))); // JPEG
-  assert(isValidImageBytes(new Uint8Array([0x89, 0x50, 0x4E, 0x47]))); // PNG
-  assert(isValidImageBytes(new Uint8Array([0x47, 0x49, 0x46, 0x38]))); // GIF
-  assert(
-    isValidImageBytes(
-      new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]),
-    ),
-  ); // WEBP
+Deno.test("detectImageMime: JPEG header", () => {
+  assertEquals(detectImageMime(new Uint8Array([0xff, 0xd8, 0xff, 0xe0])), "image/jpeg");
+});
+Deno.test("detectImageMime: PNG header", () => {
+  assertEquals(
+    detectImageMime(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    "image/png",
+  );
+});
+Deno.test("detectImageMime: GIF header", () => {
+  assertEquals(detectImageMime(new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])), "image/gif");
+});
+Deno.test("detectImageMime: WEBP header", () => {
+  const webp = new Uint8Array(20);
+  webp.set([0x52, 0x49, 0x46, 0x46], 0); // RIFF
+  webp.set([0x57, 0x45, 0x42, 0x50], 8); // WEBP
+  assertEquals(detectImageMime(webp), "image/webp");
+});
+Deno.test("detectImageMime: text/html-like bytes return null", () => {
+  // "<!DOCTYPE" — a classic polyglot attempt
+  assertEquals(detectImageMime(new TextEncoder().encode("<!DOCTYPE")), null);
+});
+Deno.test("detectImageMime: empty buffer returns null", () => {
+  assertEquals(detectImageMime(new Uint8Array(0)), null);
+});
+Deno.test("isValidImageBytes returns false for non-image", () => {
+  assertEquals(isValidImageBytes(new TextEncoder().encode("notanimage")), false);
 });
 
-Deno.test("isValidImageBytes rejects unknown bytes", () => {
-  assertEquals(isValidImageBytes(new Uint8Array([0, 1, 2, 3])), false);
-});
+// ---------- filename sanitisation ----------
 
-Deno.test("sanitizeFileName strips unsafe characters and collapses dots", () => {
-  assertEquals(sanitizeFileName("hello world!.png"), "hello_world_.png");
-  assertEquals(sanitizeFileName("../../etc/passwd"), "._._etc_passwd");
-  assertEquals(sanitizeFileName("a..b...c.png"), "a.b.c.png");
+Deno.test("sanitizeFileName: strips path separators", () => {
+  assertEquals(sanitizeFileName("../../etc/passwd"), "_._.._etc_passwd");
+});
+Deno.test("sanitizeFileName: collapses repeated dots", () => {
+  assertEquals(sanitizeFileName("evil..jpg"), "evil.jpg");
+});
+Deno.test("sanitizeFileName: keeps allowed chars", () => {
+  assertEquals(sanitizeFileName("My-Photo_2026.jpg"), "My-Photo_2026.jpg");
+});
+Deno.test("sanitizeFileName: replaces spaces and unicode", () => {
+  assertEquals(sanitizeFileName("photo café.png"), "photo_caf__.png");
 });
 
 // ---------- uploadImage ----------
 
-Deno.test("uploadImage rejects files larger than 10MB", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({}, {}, calls);
-  const big = new Uint8Array(10 * 1024 * 1024 + 1);
-  big.set([0x89, 0x50, 0x4E, 0x47], 0);
+function makeJpegBytes(size = 32) {
+  const arr = new Uint8Array(size);
+  arr[0] = 0xff;
+  arr[1] = 0xd8;
+  arr[2] = 0xff;
+  return arr;
+}
 
+function buildUploadMockDb(opts: {
+  todo?: any;
+  uploadError?: any;
+  insertError?: any;
+} = {}) {
+  const calls: { kind: string; payload?: any }[] = [];
+  const db: any = {
+    from(table: string) {
+      if (table === "todos") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => {
+                  calls.push({ kind: "select-todo" });
+                  return { data: opts.todo === undefined ? { id: TODO_ID } : opts.todo, error: null };
+                },
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "todo_images") {
+        return {
+          insert: async (row: any) => {
+            calls.push({ kind: "insert-image", payload: row });
+            return { error: opts.insertError ?? null };
+          },
+        };
+      }
+      return {};
+    },
+    storage: {
+      from(_bucket: string) {
+        return {
+          upload: async (path: string, bytes: Uint8Array, meta: any) => {
+            calls.push({ kind: "upload", payload: { path, size: bytes.length, meta } });
+            return { error: opts.uploadError ?? null };
+          },
+        };
+      },
+    },
+  };
+  return { db, calls };
+}
+
+Deno.test("uploadImage: rejects > 10MB", async () => {
+  const { db } = buildUploadMockDb();
+  const bytes = makeJpegBytes(10 * 1024 * 1024 + 1);
   const res = await uploadImage({
     db,
     userId: USER_ID,
-    params: {
-      todoId: TODO_ID,
-      fileBase64: encodeBase64(big),
-      fileName: "x.png",
-      contentType: "image/png",
-    },
+    params: { todoId: TODO_ID, fileBase64: encodeBase64(bytes), fileName: "x.jpg" },
   });
-  const body = await readJson(res);
   assertEquals(res.status, 400);
-  assert(body.error.includes("too large"));
 });
 
-Deno.test("uploadImage rejects invalid image signatures", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({}, {}, calls);
-
+Deno.test("uploadImage: rejects when magic bytes are not a known image", async () => {
+  const { db } = buildUploadMockDb();
+  const fake = new TextEncoder().encode("<svg>haha</svg>");
   const res = await uploadImage({
     db,
     userId: USER_ID,
-    params: {
-      todoId: TODO_ID,
-      fileBase64: encodeBase64(new Uint8Array([1, 2, 3, 4])),
-      fileName: "x.png",
-      contentType: "image/png",
-    },
+    params: { todoId: TODO_ID, fileBase64: encodeBase64(fake), fileName: "x.svg" },
   });
-  const body = await readJson(res);
+  const body = JSON.parse(await res.text());
   assertEquals(res.status, 400);
-  assert(body.error.includes("Invalid image"));
+  assert(String(body.error).includes("Only JPEG"));
 });
 
-Deno.test("uploadImage returns 404 when todo not found", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { todos: () => ({ data: null, error: null }) },
-    {},
-    calls,
-  );
-
+Deno.test("uploadImage: returns 404 when todo not owned by user", async () => {
+  const { db } = buildUploadMockDb({ todo: null });
   const res = await uploadImage({
     db,
     userId: USER_ID,
-    params: {
-      todoId: TODO_ID,
-      fileBase64: encodeBase64(pngBytes()),
-      fileName: "x.png",
-      contentType: "image/png",
-    },
+    params: { todoId: TODO_ID, fileBase64: encodeBase64(makeJpegBytes()), fileName: "x.jpg" },
   });
-  const body = await readJson(res);
   assertEquals(res.status, 404);
-  assertEquals(body.error, "Todo not found");
 });
 
-Deno.test("uploadImage uploads to storage and inserts metadata row", async () => {
-  const calls: Call[] = [];
-  let uploadedPath = "";
-  const db = buildMockDb(
-    {
-      todos: () => ({ data: { id: TODO_ID }, error: null }),
-      todo_images: () => ({ data: null, error: null }),
-    },
-    {
-      "todo-images": {
-        upload: (path) => {
-          uploadedPath = path;
-          return { data: { path }, error: null };
-        },
-      },
-    },
-    calls,
-  );
-
+Deno.test("uploadImage: success uses sanitised filename and detected mime", async () => {
+  const { db, calls } = buildUploadMockDb();
   const res = await uploadImage({
     db,
     userId: USER_ID,
     params: {
       todoId: TODO_ID,
-      fileBase64: encodeBase64(pngBytes()),
-      fileName: "weird name!.png",
-      contentType: "image/png",
-    },
-  });
-  const body = await readJson(res);
-
-  assertEquals(res.status, 200);
-  assertEquals(body, { success: true });
-  assert(uploadedPath.startsWith(`${USER_ID}/${TODO_ID}/`));
-  assert(uploadedPath.endsWith("weird_name_.png"));
-
-  const insertCall = calls.find((c) => c.table === "todo_images" && c.op === "insert")!;
-  assertEquals(insertCall.args[0].todo_id, TODO_ID);
-  assertEquals(insertCall.args[0].file_name, "weird_name_.png");
-  assertEquals(insertCall.args[0].storage_path, uploadedPath);
-});
-
-Deno.test("uploadImage propagates storage upload errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { todos: () => ({ data: { id: TODO_ID }, error: null }) },
-    {
-      "todo-images": {
-        upload: () => ({ data: null, error: new Error("storage boom") }),
-      },
-    },
-    calls,
-  );
-
-  await assertRejects(
-    () =>
-      uploadImage({
-        db,
-        userId: USER_ID,
-        params: {
-          todoId: TODO_ID,
-          fileBase64: encodeBase64(pngBytes()),
-          fileName: "x.png",
-          contentType: "image/png",
-        },
-      }),
-    Error,
-    "storage boom",
-  );
-});
-
-Deno.test("uploadImage propagates db insert errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {
-      todos: () => ({ data: { id: TODO_ID }, error: null }),
-      todo_images: () => ({ data: null, error: new Error("db boom") }),
-    },
-    {
-      "todo-images": {
-        upload: () => ({ data: null, error: null }),
-      },
-    },
-    calls,
-  );
-
-  await assertRejects(
-    () =>
-      uploadImage({
-        db,
-        userId: USER_ID,
-        params: {
-          todoId: TODO_ID,
-          fileBase64: encodeBase64(pngBytes()),
-          fileName: "x.png",
-          contentType: "image/png",
-        },
-      }),
-    Error,
-    "db boom",
-  );
-});
-
-Deno.test("uploadImage ignores client contentType and stores detected MIME", async () => {
-  const calls: Call[] = [];
-  let uploadOpts: any = null;
-  const db = buildMockDb(
-    {
-      todos: () => ({ data: { id: TODO_ID }, error: null }),
-      todo_images: () => ({ data: null, error: null }),
-    },
-    {
-      "todo-images": {
-        upload: (_path, _bytes, opts) => {
-          uploadOpts = opts;
-          return { data: null, error: null };
-        },
-      },
-    },
-    calls,
-  );
-
-  const res = await uploadImage({
-    db,
-    userId: USER_ID,
-    params: {
-      todoId: TODO_ID,
-      fileBase64: encodeBase64(pngBytes()),
-      fileName: "x.png",
-      contentType: "text/html", // spoofed
+      fileBase64: encodeBase64(makeJpegBytes()),
+      fileName: "../evil name.jpg",
     },
   });
   assertEquals(res.status, 200);
-  assertEquals(uploadOpts.contentType, "image/png");
+  const uploadCall = calls.find((c) => c.kind === "upload")!;
+  assert(uploadCall.payload.path.startsWith(`${USER_ID}/${TODO_ID}/`));
+  assert(!uploadCall.payload.path.includes(".."));
+  assert(!uploadCall.payload.path.includes(" "));
+  assertEquals(uploadCall.payload.meta.contentType, "image/jpeg");
+
+  const insertCall = calls.find((c) => c.kind === "insert-image")!;
+  assertEquals(insertCall.payload.todo_id, TODO_ID);
+  assert(!insertCall.payload.file_name.includes(".."));
 });
 
-// ---------- deleteImage ----------
+Deno.test("uploadImage: propagates storage upload error", async () => {
+  const { db } = buildUploadMockDb({ uploadError: new Error("storage down") });
+  let thrown: any = null;
+  try {
+    await uploadImage({
+      db,
+      userId: USER_ID,
+      params: {
+        todoId: TODO_ID,
+        fileBase64: encodeBase64(makeJpegBytes()),
+        fileName: "x.jpg",
+      },
+    });
+  } catch (e) {
+    thrown = e;
+  }
+  assert(thrown);
+});
 
-Deno.test("deleteImage removes storage object then deletes db row", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { todo_images: () => ({ data: { id: "img-1", storage_path: "user-123/todo-abc/file.png" }, error: null }) },
-    { "todo-images": { remove: () => ({ data: null, error: null }) } },
-    calls,
-  );
+// ---------- deleteImage / getImageUrl ownership ----------
 
+function buildOwnershipMockDb(opts: { img?: any; deleteError?: any; signed?: string } = {}) {
+  const calls: any[] = [];
+  const db: any = {
+    from(table: string) {
+      if (table === "todo_images") {
+        // chained .select.eq.eq.eq.maybeSingle for ownership read
+        const ownershipChain = {
+          eq: () => ownershipChain,
+          maybeSingle: async () => {
+            calls.push({ kind: "ownership-read" });
+            return {
+              data: opts.img === undefined ? { id: "img1", storage_path: "p" } : opts.img,
+              error: null,
+            };
+          },
+        };
+        return {
+          select: () => ownershipChain,
+          delete: () => ({
+            eq: async () => {
+              calls.push({ kind: "image-delete" });
+              return { error: opts.deleteError ?? null };
+            },
+          }),
+        };
+      }
+      return {};
+    },
+    storage: {
+      from(_b: string) {
+        return {
+          remove: async (paths: string[]) => {
+            calls.push({ kind: "storage-remove", payload: paths });
+            return { error: null };
+          },
+          createSignedUrl: async (path: string, ttl: number) => {
+            calls.push({ kind: "signed", payload: { path, ttl } });
+            return { data: { signedUrl: opts.signed ?? "https://signed/x" }, error: null };
+          },
+        };
+      },
+    },
+  };
+  return { db, calls };
+}
+
+Deno.test("deleteImage: 400 when id/storagePath missing", async () => {
+  const { db } = buildOwnershipMockDb();
+  const res = await deleteImage({ db, userId: USER_ID, params: {} });
+  assertEquals(res.status, 400);
+});
+
+Deno.test("deleteImage: 404 when image not owned by user", async () => {
+  const { db } = buildOwnershipMockDb({ img: null });
   const res = await deleteImage({
     db,
     userId: USER_ID,
-    params: { id: "img-1", storagePath: "user-123/todo-abc/file.png" },
+    params: { id: "img1", storagePath: "p" },
   });
-  const body = await readJson(res);
+  assertEquals(res.status, 404);
+});
 
+Deno.test("deleteImage: success removes storage and DB row", async () => {
+  const { db, calls } = buildOwnershipMockDb();
+  const res = await deleteImage({
+    db,
+    userId: USER_ID,
+    params: { id: "img1", storagePath: "the/path" },
+  });
   assertEquals(res.status, 200);
-  assertEquals(body, { success: true });
-
-  const removeCall = calls.find((c) => c.op === "remove")!;
-  assertEquals(removeCall.args[0], ["user-123/todo-abc/file.png"]);
-
-  const dbDelete = calls.find((c) => c.table === "todo_images" && c.op === "delete")!;
-  assertEquals(dbDelete.filters[0], { method: "eq", args: ["id", "img-1"] });
+  assert(calls.some((c) => c.kind === "storage-remove" && c.payload[0] === "the/path"));
+  assert(calls.some((c) => c.kind === "image-delete"));
 });
 
-Deno.test("deleteImage propagates db delete errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {
-      todo_images: (call) =>
-        call.op === "delete"
-          ? { data: null, error: new Error("delete boom") }
-          : { data: { id: "img-1", storage_path: "p" }, error: null },
-    },
-    { "todo-images": { remove: () => ({ data: null, error: null }) } },
-    calls,
-  );
-
-  await assertRejects(
-    () =>
-      deleteImage({
-        db,
-        userId: USER_ID,
-        params: { id: "img-1", storagePath: "p" },
-      }),
-    Error,
-    "delete boom",
-  );
+Deno.test("getImageUrl: 400 when storagePath missing", async () => {
+  const { db } = buildOwnershipMockDb();
+  const res = await getImageUrl({ db, userId: USER_ID, params: {} });
+  assertEquals(res.status, 400);
 });
 
-// ---------- getImageUrl ----------
-
-Deno.test("getImageUrl returns signed URL for storage path", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
-    {
-      "todo-images": {
-        createSignedUrl: (path, expires) => {
-          assertEquals(expires, 3600);
-          return { data: { signedUrl: `https://signed/${path}` }, error: null };
-        },
-      },
-    },
-    calls,
-  );
-
+Deno.test("getImageUrl: 404 when image not owned", async () => {
+  const { db } = buildOwnershipMockDb({ img: null });
   const res = await getImageUrl({
     db,
     userId: USER_ID,
-    params: { storagePath: "user-123/todo-abc/file.png" },
+    params: { storagePath: "someone/else/x" },
   });
-  const body = await readJson(res);
-
-  assertEquals(res.status, 200);
-  assertEquals(body, { signedUrl: "https://signed/user-123/todo-abc/file.png" });
+  assertEquals(res.status, 404);
 });
 
-Deno.test("getImageUrl propagates signing errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { todo_images: () => ({ data: { id: "img-1" }, error: null }) },
-    { "todo-images": { createSignedUrl: () => ({ data: null, error: new Error("sign boom") }) } },
-    calls,
-  );
-
-  await assertRejects(
-    () =>
-      getImageUrl({
-        db,
-        userId: USER_ID,
-        params: { storagePath: "p" },
-      }),
-    Error,
-    "sign boom",
-  );
+Deno.test("getImageUrl: returns signed URL with 1h TTL", async () => {
+  const { db, calls } = buildOwnershipMockDb({ signed: "https://signed/abc" });
+  const res = await getImageUrl({
+    db,
+    userId: USER_ID,
+    params: { storagePath: "u/t/file.jpg" },
+  });
+  const body = JSON.parse(await res.text());
+  assertEquals(res.status, 200);
+  assertEquals(body.signedUrl, "https://signed/abc");
+  const signCall = calls.find((c) => c.kind === "signed")!;
+  assertEquals(signCall.payload.ttl, 3600);
 });

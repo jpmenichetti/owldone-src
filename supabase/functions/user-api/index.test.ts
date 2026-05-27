@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assert,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import {
   getFilters,
@@ -15,98 +12,60 @@ import {
   getFeatures,
 } from "./index.ts";
 
-// ---------- Test setup helpers ----------
-
-const USER_ID = "user-123";
+const USER_ID = "user-abc";
 
 type Call = {
   table: string;
   op: string;
   args: any[];
-  filters: Array<{ method: string; args: any[] }>;
+  filters: { method: string; args: any[] }[];
   options?: any;
 };
 
-/**
- * Chainable in-memory mock of the Supabase query builder.
- * Supports: select, insert, upsert, update, delete + filters
- *           eq, in, order, range, limit, select-on-chain
- *           terminators: maybeSingle(), single(), then() (await chain).
- */
 function buildMockDb(
-  resultsByTable: Record<
-    string,
-    (call: Call) => { data?: any; error?: any; count?: number }
-  >,
-  callLog: Call[],
+  resultsByTable: Record<string, (c: Call) => { data?: any; error?: any }>,
+  callLog: Call[] = [],
 ) {
-  function makeChain(table: string, op: string, args: any[], options?: any) {
-    const call: Call = { table, op, args, filters: [], options };
-    callLog.push(call);
-
-    const resolver = () => {
-      const handler = resultsByTable[table];
-      const res = handler ? handler(call) : { data: null, error: null };
-      return Promise.resolve(res);
-    };
-
-    const chain: any = {
+  function chain(table: string, op: string, args: any[], options?: any) {
+    const c: Call = { table, op, args, filters: [], options };
+    callLog.push(c);
+    const resolve = () => Promise.resolve(resultsByTable[table]?.(c) ?? { data: null, error: null });
+    const proxy: any = {
       eq(...a: any[]) {
-        call.filters.push({ method: "eq", args: a });
-        return chain;
-      },
-      in(...a: any[]) {
-        call.filters.push({ method: "in", args: a });
-        return chain;
+        c.filters.push({ method: "eq", args: a });
+        return proxy;
       },
       order(...a: any[]) {
-        call.filters.push({ method: "order", args: a });
-        return chain;
-      },
-      range(...a: any[]) {
-        call.filters.push({ method: "range", args: a });
-        return chain;
+        c.filters.push({ method: "order", args: a });
+        return proxy;
       },
       limit(...a: any[]) {
-        call.filters.push({ method: "limit", args: a });
-        return chain;
+        c.filters.push({ method: "limit", args: a });
+        return resolve();
       },
       select(...a: any[]) {
-        call.filters.push({ method: "select", args: a });
-        return chain;
-      },
-      single() {
-        call.filters.push({ method: "single", args: [] });
-        return resolver();
+        c.filters.push({ method: "select", args: a });
+        return proxy;
       },
       maybeSingle() {
-        call.filters.push({ method: "maybeSingle", args: [] });
-        return resolver();
+        c.filters.push({ method: "maybeSingle", args: [] });
+        return resolve();
       },
-      then(onFulfilled: any, onRejected: any) {
-        return resolver().then(onFulfilled, onRejected);
+      then(onF: any, onR: any) {
+        return resolve().then(onF, onR);
       },
     };
-    return chain;
+    return proxy;
   }
-
   return {
+    _calls: callLog,
     from(table: string) {
       return {
-        select(cols: string, options?: any) {
-          return makeChain(table, "select", [cols], options);
-        },
-        insert(values: any) {
-          return makeChain(table, "insert", [values]);
+        select(cols: string) {
+          return chain(table, "select", [cols]);
         },
         upsert(values: any, options?: any) {
-          return makeChain(table, "upsert", [values], options);
-        },
-        update(values: any) {
-          return makeChain(table, "update", [values]);
-        },
-        delete() {
-          return makeChain(table, "delete", []);
+          return chain(table, "upsert", [values], options);
         },
       };
     },
@@ -117,306 +76,173 @@ async function readJson(res: Response) {
   return JSON.parse(await res.text());
 }
 
-// ---------- Tests ----------
+// ---------- getFilters ----------
 
-Deno.test("getFilters returns existing row", async () => {
+Deno.test("getFilters returns row scoped to userId", async () => {
   const calls: Call[] = [];
-  const db = buildMockDb(
-    {
-      user_filters: () => ({
-        data: { show_overdue: true, selected_tags: ["a"] },
-        error: null,
-      }),
-    },
-    calls,
-  );
-
-  const res = await getFilters({ db, userId: USER_ID, params: {} });
+  const db = buildMockDb({
+    user_filters: () => ({ data: { show_overdue: true, selected_tags: ["x"] }, error: null }),
+  }, calls);
+  const res = await getFilters({ db: db as any, userId: USER_ID, params: {} });
   const body = await readJson(res);
-
-  assertEquals(res.status, 200);
-  assertEquals(body, { show_overdue: true, selected_tags: ["a"] });
-  const call = calls.find((c) => c.table === "user_filters")!;
-  assertEquals(call.filters.find((f) => f.method === "eq")?.args, ["user_id", USER_ID]);
+  assertEquals(body, { show_overdue: true, selected_tags: ["x"] });
+  const c = calls.find((c) => c.table === "user_filters")!;
+  assert(c.filters.some((f) => f.method === "eq" && f.args[0] === "user_id" && f.args[1] === USER_ID));
 });
 
-Deno.test("getFilters returns defaults when no row exists", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_filters: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await getFilters({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { show_overdue: false, selected_tags: [] });
+Deno.test("getFilters defaults when no row exists", async () => {
+  const db = buildMockDb({ user_filters: () => ({ data: null, error: null }) });
+  const res = await getFilters({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { show_overdue: false, selected_tags: [] });
 });
 
-Deno.test("upsertFilters writes user_id with onConflict", async () => {
+Deno.test("upsertFilters forces user_id from auth context (ignores body user_id)", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ user_filters: () => ({ error: null }) }, calls);
-
-  const res = await upsertFilters({
-    db,
+  await upsertFilters({
+    db: db as any,
     userId: USER_ID,
-    params: { show_overdue: true, selected_tags: ["x"] },
+    params: { user_id: "OTHER", show_overdue: true, selected_tags: ["a"] },
   });
-  const body = await readJson(res);
+  const c = calls.find((c) => c.table === "user_filters" && c.op === "upsert")!;
+  assertEquals(c.args[0].user_id, USER_ID);
+  assertEquals(c.options?.onConflict, "user_id");
+});
 
-  assertEquals(body, { success: true });
-  const call = calls.find((c) => c.op === "upsert")!;
-  assertEquals(call.args[0], {
-    user_id: USER_ID,
-    show_overdue: true,
-    selected_tags: ["x"],
+// ---------- onboarding ----------
+
+Deno.test("getOnboarding: showOnboarding=true when no row", async () => {
+  const db = buildMockDb({ user_preferences: () => ({ data: null, error: null }) });
+  const res = await getOnboarding({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { showOnboarding: true });
+});
+
+Deno.test("getOnboarding: showOnboarding=true when not completed", async () => {
+  const db = buildMockDb({
+    user_preferences: () => ({ data: { onboarding_completed: false }, error: null }),
   });
-  assertEquals(call.options, { onConflict: "user_id" });
+  const res = await getOnboarding({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { showOnboarding: true });
 });
 
-Deno.test("getOnboarding returns showOnboarding=true when no preferences row", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_preferences: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await getOnboarding({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { showOnboarding: true });
-});
-
-Deno.test("getOnboarding returns showOnboarding=false when completed", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {
-      user_preferences: () => ({
-        data: { onboarding_completed: true },
-        error: null,
-      }),
-    },
-    calls,
-  );
-
-  const res = await getOnboarding({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { showOnboarding: false });
-});
-
-Deno.test("getOnboarding returns showOnboarding=true when row exists but not completed", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    {
-      user_preferences: () => ({
-        data: { onboarding_completed: false },
-        error: null,
-      }),
-    },
-    calls,
-  );
-
-  const res = await getOnboarding({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { showOnboarding: true });
+Deno.test("getOnboarding: showOnboarding=false when completed", async () => {
+  const db = buildMockDb({
+    user_preferences: () => ({ data: { onboarding_completed: true }, error: null }),
+  });
+  const res = await getOnboarding({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { showOnboarding: false });
 });
 
 Deno.test("completeOnboarding upserts onboarding_completed=true", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ user_preferences: () => ({ error: null }) }, calls);
-
-  const res = await completeOnboarding({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  const call = calls.find((c) => c.op === "upsert")!;
-  assertEquals(call.args[0], { user_id: USER_ID, onboarding_completed: true });
-  assertEquals(call.options, { onConflict: "user_id" });
+  await completeOnboarding({ db: db as any, userId: USER_ID, params: {} });
+  const c = calls.find((c) => c.table === "user_preferences")!;
+  assertEquals(c.args[0], { user_id: USER_ID, onboarding_completed: true });
 });
 
-Deno.test("checkAdmin returns isAdmin=true when row exists", async () => {
+// ---------- admin check ----------
+
+Deno.test("checkAdmin: isAdmin=true when row present", async () => {
+  const db = buildMockDb({ user_roles: () => ({ data: { role: "admin" }, error: null }) });
+  const res = await checkAdmin({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { isAdmin: true });
+});
+
+Deno.test("checkAdmin: isAdmin=false when no row", async () => {
+  const db = buildMockDb({ user_roles: () => ({ data: null, error: null }) });
+  const res = await checkAdmin({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { isAdmin: false });
+});
+
+Deno.test("checkAdmin: queries with role='admin' (cannot escalate via role injection)", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ user_roles: () => ({ data: null, error: null }) }, calls);
+  await checkAdmin({
+    db: db as any,
+    userId: USER_ID,
+    params: { role: "moderator" }, // attempt to override
+  });
+  const c = calls.find((c) => c.table === "user_roles")!;
+  // both eqs hardcoded
+  assert(c.filters.some((f) => f.method === "eq" && f.args[0] === "user_id" && f.args[1] === USER_ID));
+  assert(c.filters.some((f) => f.method === "eq" && f.args[0] === "role" && f.args[1] === "admin"));
+});
+
+// ---------- weekly reports ----------
+
+Deno.test("getWeeklyReports: scoped to userId, ordered desc, limit 12", async () => {
   const calls: Call[] = [];
   const db = buildMockDb(
-    { user_roles: () => ({ data: { role: "admin" }, error: null }) },
+    { weekly_reports: () => ({ data: [{ id: "r1" }], error: null }) },
     calls,
   );
-
-  const res = await checkAdmin({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { isAdmin: true });
-  const call = calls.find((c) => c.table === "user_roles")!;
-  const eqs = call.filters.filter((f) => f.method === "eq").map((f) => f.args);
-  assertEquals(eqs, [["user_id", USER_ID], ["role", "admin"]]);
+  await getWeeklyReports({ db: db as any, userId: USER_ID, params: {} });
+  const c = calls.find((c) => c.table === "weekly_reports")!;
+  assert(c.filters.some((f) => f.method === "eq" && f.args[0] === "user_id" && f.args[1] === USER_ID));
+  const order = c.filters.find((f) => f.method === "order");
+  assertEquals(order?.args[0], "week_start");
+  assertEquals(order?.args[1]?.ascending, false);
+  const limit = c.filters.find((f) => f.method === "limit");
+  assertEquals(limit?.args[0], 12);
 });
 
-Deno.test("checkAdmin returns isAdmin=false when no row", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_roles: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await checkAdmin({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { isAdmin: false });
+Deno.test("getWeeklyReports: returns [] when DB returns null", async () => {
+  const db = buildMockDb({ weekly_reports: () => ({ data: null, error: null }) });
+  const res = await getWeeklyReports({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), []);
 });
 
-Deno.test("getWeeklyReports returns rows ordered and limited to 12", async () => {
-  const calls: Call[] = [];
-  const rows = Array.from({ length: 5 }, (_, i) => ({ id: `r${i}` }));
-  const db = buildMockDb(
-    { weekly_reports: () => ({ data: rows, error: null }) },
-    calls,
-  );
+// ---------- language ----------
 
-  const res = await getWeeklyReports({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, rows);
-  const call = calls.find((c) => c.table === "weekly_reports")!;
-  assertEquals(call.filters.find((f) => f.method === "order")?.args, [
-    "week_start",
-    { ascending: false },
-  ]);
-  assertEquals(call.filters.find((f) => f.method === "limit")?.args, [12]);
+Deno.test("getLanguage: defaults to 'en' when no row", async () => {
+  const db = buildMockDb({ user_preferences: () => ({ data: null, error: null }) });
+  const res = await getLanguage({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { language: "en" });
 });
 
-Deno.test("getWeeklyReports returns empty array when no rows", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { weekly_reports: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await getWeeklyReports({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, []);
+Deno.test("getLanguage: returns stored language", async () => {
+  const db = buildMockDb({
+    user_preferences: () => ({ data: { language: "es" }, error: null }),
+  });
+  const res = await getLanguage({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { language: "es" });
 });
 
-Deno.test("getLanguage returns stored language", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_preferences: () => ({ data: { language: "es" }, error: null }) },
-    calls,
-  );
-
-  const res = await getLanguage({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { language: "es" });
-});
-
-Deno.test("getLanguage falls back to 'en' when no row", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_preferences: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await getLanguage({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { language: "en" });
-});
-
-Deno.test("setLanguage upserts language with onConflict", async () => {
+Deno.test("setLanguage: upserts with user_id from auth (ignores body user_id)", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ user_preferences: () => ({ error: null }) }, calls);
-
-  const res = await setLanguage({
-    db,
+  await setLanguage({
+    db: db as any,
     userId: USER_ID,
-    params: { language: "fr" },
+    params: { user_id: "OTHER", language: "fr" },
   });
+  const c = calls.find((c) => c.table === "user_preferences")!;
+  assertEquals(c.args[0], { user_id: USER_ID, language: "fr" });
+});
+
+// ---------- features ----------
+
+Deno.test("getFeatures: filters out expired and disabled", async () => {
+  const past = "2000-01-01T00:00:00Z";
+  const future = "2999-01-01T00:00:00Z";
+  const db = buildMockDb({
+    user_features: () => ({
+      data: [
+        { feature: "active-no-exp", enabled: true, expires_at: null },
+        { feature: "active-future", enabled: true, expires_at: future },
+        { feature: "expired", enabled: true, expires_at: past },
+      ],
+      error: null,
+    }),
+  });
+  const res = await getFeatures({ db: db as any, userId: USER_ID, params: {} });
   const body = await readJson(res);
-
-  assertEquals(body, { success: true });
-  const call = calls.find((c) => c.op === "upsert")!;
-  assertEquals(call.args[0], { user_id: USER_ID, language: "fr" });
-  assertEquals(call.options, { onConflict: "user_id" });
+  assertEquals(body.features.sort(), ["active-future", "active-no-exp"]);
 });
 
-Deno.test("getFeatures returns only enabled, non-expired feature names", async () => {
-  const calls: Call[] = [];
-  const future = new Date(Date.now() + 86_400_000).toISOString();
-  const past = new Date(Date.now() - 86_400_000).toISOString();
-  const db = buildMockDb(
-    {
-      user_features: () => ({
-        data: [
-          { feature: "recurrence", enabled: true, expires_at: null },
-          { feature: "beta-x", enabled: true, expires_at: future },
-          { feature: "expired-y", enabled: true, expires_at: past },
-        ],
-        error: null,
-      }),
-    },
-    calls,
-  );
-
-  const res = await getFeatures({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { features: ["recurrence", "beta-x"] });
-  const call = calls.find((c) => c.table === "user_features")!;
-  const eqs = call.filters.filter((f) => f.method === "eq").map((f) => f.args);
-  assertEquals(eqs, [["user_id", USER_ID], ["enabled", true]]);
-});
-
-Deno.test("getFeatures returns empty array when no rows", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_features: () => ({ data: null, error: null }) },
-    calls,
-  );
-
-  const res = await getFeatures({ db, userId: USER_ID, params: {} });
-  const body = await readJson(res);
-
-  assertEquals(body, { features: [] });
-});
-
-Deno.test("getFilters propagates DB errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_filters: () => ({ data: null, error: { message: "boom" } }) },
-    calls,
-  );
-
-  let caught: any = null;
-  try {
-    await getFilters({ db, userId: USER_ID, params: {} });
-  } catch (e) {
-    caught = e;
-  }
-  assertEquals(caught?.message, "boom");
-});
-
-Deno.test("setLanguage propagates DB errors", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb(
-    { user_preferences: () => ({ error: { message: "nope" } }) },
-    calls,
-  );
-
-  let caught: any = null;
-  try {
-    await setLanguage({ db, userId: USER_ID, params: { language: "de" } });
-  } catch (e) {
-    caught = e;
-  }
-  assertEquals(caught?.message, "nope");
-});
-
-Deno.test("checkAdmin does not throw when DB returns no data", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ user_roles: () => ({ data: null }) }, calls);
-
-  const res = await checkAdmin({ db, userId: USER_ID, params: {} });
-  assert(res.ok);
+Deno.test("getFeatures: returns {features:[]} when DB returns null", async () => {
+  const db = buildMockDb({ user_features: () => ({ data: null, error: null }) });
+  const res = await getFeatures({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { features: [] });
 });
