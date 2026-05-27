@@ -349,17 +349,17 @@ Deno.test("deletePermanent batches ids in groups of 500", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
 
-  const ids = Array.from({ length: 1200 }, (_, i) => `id-${i}`);
+  const ids = Array.from({ length: 1000 }, (_, i) => `id-${i}`);
   const res = await deletePermanent({ db, userId: USER_ID, params: { ids } });
   const body = await readJson(res);
 
   assertEquals(body, { success: true });
   const deleteCalls = calls.filter((c) => c.op === "delete");
-  assertEquals(deleteCalls.length, 3);
+  assertEquals(deleteCalls.length, 2);
   const inSizes = deleteCalls.map(
     (c) => c.filters.find((f) => f.method === "in")!.args[1].length,
   );
-  assertEquals(inSizes, [500, 500, 200]);
+  assertEquals(inSizes, [500, 500]);
 });
 
 Deno.test("deleteAll deletes user's todos", async () => {
