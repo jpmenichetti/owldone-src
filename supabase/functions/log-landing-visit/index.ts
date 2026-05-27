@@ -59,6 +59,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Defense-in-depth: reject calls missing the daily-rotating obfuscation token.
+    const provided = req.headers.get("x-landing-token") || "";
+    const expected = await expectedToken();
+    if (provided !== expected) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       req.headers.get("cf-connecting-ip") ||
