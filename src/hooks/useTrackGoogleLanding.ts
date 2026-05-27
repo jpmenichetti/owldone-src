@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { computeLandingToken } from "@/lib/landingToken";
 
 const SESSION_FLAG = "owldone:google_landing_logged";
 
