@@ -428,7 +428,8 @@ Deno.test("autoTransitions performs both archive and category move", async () =>
 
   assertEquals(body, { success: true });
   const updateCalls = calls.filter((c) => c.op === "update");
-  assertEquals(updateCalls.length, 3);
+  // Batched: one .in() for archive (x1,x2), one .in() for move (m1)
+  assertEquals(updateCalls.length, 2);
   const moveCall = updateCalls.find(
     (c) => (c.args[0] as any).category === "this_week",
   );
