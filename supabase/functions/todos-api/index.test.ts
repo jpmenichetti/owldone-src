@@ -608,14 +608,10 @@ Deno.test("updateTodo rejects notes over 50000 chars", async () => {
 
 Deno.test("validation rejects too many tags", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: {
-        text: "x",
-        category: "today",
-        tags: Array.from({ length: 51 }, (_, i) => `t${i}`),
-      },
+      params: { id: "t1", tags: Array.from({ length: 51 }, (_, i) => `t${i}`) },
     }),
     /tags/i,
   );
@@ -623,10 +619,10 @@ Deno.test("validation rejects too many tags", async () => {
 
 Deno.test("validation rejects oversized tag string", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", tags: ["a".repeat(101)] },
+      params: { id: "t1", tags: ["a".repeat(101)] },
     }),
     /tag/i,
   );
@@ -634,12 +630,11 @@ Deno.test("validation rejects oversized tag string", async () => {
 
 Deno.test("validation rejects too many urls", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
       params: {
-        text: "x",
-        category: "today",
+        id: "t1",
         urls: Array.from({ length: 21 }, (_, i) => `https://e.com/${i}`),
       },
     }),
@@ -649,10 +644,10 @@ Deno.test("validation rejects too many urls", async () => {
 
 Deno.test("validation rejects oversized url string", async () => {
   await expectBadRequest(
-    () => addTodo({
+    () => updateTodo({
       db: noopDb(),
       userId: USER_ID,
-      params: { text: "x", category: "today", urls: ["a".repeat(2001)] },
+      params: { id: "t1", urls: ["a".repeat(2001)] },
     }),
     /url/i,
   );
