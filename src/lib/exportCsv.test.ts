@@ -35,8 +35,10 @@ function captureCsv(todos: Todo[]): string {
     }
   };
 
-  const createUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:fake");
-  const revokeUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
+  const origCreate = (URL as any).createObjectURL;
+  const origRevoke = (URL as any).revokeObjectURL;
+  (URL as any).createObjectURL = () => "blob:fake";
+  (URL as any).revokeObjectURL = () => {};
   const clickSpy = vi
     .spyOn(HTMLAnchorElement.prototype, "click")
     .mockImplementation(() => {});
@@ -45,8 +47,8 @@ function captureCsv(todos: Todo[]): string {
     exportTodosCsv(todos);
   } finally {
     globalThis.Blob = origBlob;
-    createUrl.mockRestore();
-    revokeUrl.mockRestore();
+    (URL as any).createObjectURL = origCreate;
+    (URL as any).revokeObjectURL = origRevoke;
     clickSpy.mockRestore();
   }
   return captured;
