@@ -36,6 +36,19 @@ function rateLimited(ip: string): boolean {
   return b.count > RATE_LIMIT;
 }
 
+// Daily-rotating obfuscation token. Mirrors src/lib/landingToken.ts.
+const TOKEN_SEED = "owldone-landing-v1";
+async function expectedToken(): Promise<string> {
+  const d = new Date();
+  const day = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  const bytes = new TextEncoder().encode(`${TOKEN_SEED}:${day}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") {
