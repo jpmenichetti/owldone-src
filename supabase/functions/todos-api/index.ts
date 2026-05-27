@@ -247,6 +247,8 @@ export async function updateTodo({ db, userId, params }: Ctx): Promise<Response>
   if (Object.keys(updates).length === 0) {
     throw { status: 400, message: "No valid fields to update" };
   }
+  validateTodoFields(updates);
+
 
   const { error } = await db
     .from("todos")
