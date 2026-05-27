@@ -292,8 +292,21 @@ export async function restoreTodo({ db, userId, params }: Ctx): Promise<Response
   return json({ success: true });
 }
 
+const MAX_IDS = 1000;
+const MAX_BULK_INSERT = 2000;
+const BULK_INSERT_ALLOWED_FIELDS = [
+  "text", "category", "tags", "notes", "urls",
+  "completed", "completed_at", "removed", "removed_at", "recurrence",
+] as const;
+
+function assertIdList(ids: unknown): asserts ids is string[] {
+  if (!Array.isArray(ids)) throw { status: 400, message: "Invalid ids" };
+  if (ids.length > MAX_IDS) throw { status: 400, message: `Too many ids (max ${MAX_IDS})` };
+}
+
 export async function deletePermanent({ db, userId, params }: Ctx): Promise<Response> {
   const { ids } = params;
+  assertIdList(ids);
   for (let i = 0; i < ids.length; i += 500) {
     const batch = ids.slice(i, i + 500);
     const { error } = await db.from("todos").delete().in("id", batch).eq("user_id", userId);
@@ -311,10 +324,21 @@ export async function deleteAll({ db, userId }: Ctx): Promise<Response> {
 export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response> {
   const { todos } = params;
   if (!Array.isArray(todos)) throw { status: 400, message: "Invalid todos" };
+  if (todos.length > MAX_BULK_INSERT) {
+    throw { status: 400, message: `Too many todos (max ${MAX_BULK_INSERT})` };
+  }
   for (const t of todos) {
     validateTodoFields(t, { requireText: true, requireCategory: true });
   }
-  const rows = todos.map((t: any) => ({ ...t, user_id: userId }));
+  // Whitelist user-writable fields only — prevents injection of id, created_at,
+  // updated_at, next_recurrence_at, recurring_source_id, etc.
+  const rows = todos.map((t: any) => {
+    const row: Record<string, unknown> = { user_id: userId };
+    for (const k of BULK_INSERT_ALLOWED_FIELDS) {
+      if (t[k] !== undefined) row[k] = t[k];
+    }
+    return row;
+  });
   for (let i = 0; i < rows.length; i += 500) {
     const batch = rows.slice(i, i + 500);
     const { error } = await db.from("todos").insert(batch);
@@ -325,6 +349,7 @@ export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response>
 
 export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Response> {
   const { ids } = params;
+  assertIdList(ids);
   const now = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 500) {
     const batch = ids.slice(i, i + 500);
@@ -341,18 +366,28 @@ export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Res
 export async function autoTransitions({ db, userId, params }: Ctx): Promise<Response> {
   const { idsToArchive, idsToMoveToThisWeek } = params;
   const now = new Date().toISOString();
-  if (idsToArchive?.length > 0) {
-    for (const id of idsToArchive) {
-      await db.from("todos").update({ removed: true, removed_at: now }).eq("id", id).eq("user_id", userId);
+  if (Array.isArray(idsToArchive) && idsToArchive.length > 0) {
+    assertIdList(idsToArchive);
+    for (let i = 0; i < idsToArchive.length; i += 500) {
+      const batch = idsToArchive.slice(i, i + 500);
+      const { error } = await db
+        .from("todos")
+        .update({ removed: true, removed_at: now })
+        .in("id", batch)
+        .eq("user_id", userId);
+      if (error) throw error;
     }
   }
-  if (idsToMoveToThisWeek?.length > 0) {
-    for (const id of idsToMoveToThisWeek) {
-      await db
+  if (Array.isArray(idsToMoveToThisWeek) && idsToMoveToThisWeek.length > 0) {
+    assertIdList(idsToMoveToThisWeek);
+    for (let i = 0; i < idsToMoveToThisWeek.length; i += 500) {
+      const batch = idsToMoveToThisWeek.slice(i, i + 500);
+      const { error } = await db
         .from("todos")
         .update({ category: "this_week", created_at: now })
-        .eq("id", id)
+        .in("id", batch)
         .eq("user_id", userId);
+      if (error) throw error;
     }
   }
   return json({ success: true });

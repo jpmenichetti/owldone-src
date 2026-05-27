@@ -4,7 +4,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-landing-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const BodySchema = z.object({
@@ -36,6 +36,19 @@ function rateLimited(ip: string): boolean {
   return b.count > RATE_LIMIT;
 }
 
+// Daily-rotating obfuscation token. Mirrors src/lib/landingToken.ts.
+const TOKEN_SEED = "owldone-landing-v1";
+async function expectedToken(): Promise<string> {
+  const d = new Date();
+  const day = `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+  const bytes = new TextEncoder().encode(`${TOKEN_SEED}:${day}`);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 32);
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") {
@@ -46,6 +59,16 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Defense-in-depth: reject calls missing the daily-rotating obfuscation token.
+    const provided = req.headers.get("x-landing-token") || "";
+    const expected = await expectedToken();
+    if (provided !== expected) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const ip =
       req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
       req.headers.get("cf-connecting-ip") ||
