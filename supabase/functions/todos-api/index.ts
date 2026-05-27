@@ -65,6 +65,7 @@ function logLatency(
 // ============================================================
 const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
 const VALID_RECURRENCE = ["daily", "weekly", "monthly"];
+const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
 const LIMITS = {
   text: 2000,
   notes: 50000,
@@ -107,6 +108,11 @@ function validateTodoFields(
     if (f.urls.length > LIMITS.urls) bad(`Too many urls (max ${LIMITS.urls})`);
     for (const u of f.urls) {
       if (typeof u !== "string" || u.length > LIMITS.urlLen) bad("Invalid url value");
+      let parsed: URL;
+      try { parsed = new URL(u); } catch { bad("Invalid url value"); }
+      if (!ALLOWED_URL_PROTOCOLS.includes(parsed!.protocol)) {
+        bad("URL must use http or https");
+      }
     }
   }
   if (f.recurrence !== undefined && f.recurrence !== null) {

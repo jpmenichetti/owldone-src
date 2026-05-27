@@ -830,3 +830,91 @@ Deno.test("autoTransitions skips category-move when idsToMoveToThisWeek undefine
   assertEquals(updateCalls.length, 1);
   assertEquals((updateCalls[0].args[0] as any).removed, true);
 });
+
+// ---------- URL protocol allowlist ----------
+
+Deno.test("updateTodo rejects javascript: URL", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", urls: ["javascript:alert(1)"] },
+    }),
+    /http or https/i,
+  );
+});
+
+Deno.test("updateTodo rejects data: URL", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", urls: ["data:text/html,<script>"] },
+    }),
+    /http or https/i,
+  );
+});
+
+Deno.test("updateTodo rejects file: URL", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", urls: ["file:///etc/passwd"] },
+    }),
+    /http or https/i,
+  );
+});
+
+Deno.test("updateTodo rejects malformed URL string", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", urls: ["not a url"] },
+    }),
+    /url/i,
+  );
+});
+
+Deno.test("updateTodo rejects bad URL even when mixed with good ones", async () => {
+  await expectBadRequest(
+    () => updateTodo({
+      db: noopDb(),
+      userId: USER_ID,
+      params: { id: "t1", urls: ["https://ok.com", "javascript:alert(1)"] },
+    }),
+    /http or https/i,
+  );
+});
+
+Deno.test("bulkInsert rejects when any item has bad-protocol URL", async () => {
+  await expectBadRequest(
+    () => bulkInsert({
+      db: noopDb(),
+      userId: USER_ID,
+      params: {
+        todos: [
+          { text: "ok", category: "today", urls: ["https://ok.com"] },
+          { text: "bad", category: "today", urls: ["javascript:alert(1)"] },
+        ],
+      },
+    }),
+    /http or https/i,
+  );
+});
+
+Deno.test("updateTodo accepts http and https URLs", async () => {
+  const calls: Call[] = [];
+  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+  const res = await updateTodo({
+    db,
+    userId: USER_ID,
+    params: {
+      id: "t1",
+      urls: ["http://example.com", "https://example.com/path?q=1"],
+    },
+  });
+  assertEquals(res.status, 200);
+});
+

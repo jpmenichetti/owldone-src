@@ -1,45 +1,37 @@
-## Expand todos-api Tests — Edge Cases
+## Add URL Protocol Allowlist to todos-api
 
-Add edge-case tests to `supabase/functions/todos-api/index.test.ts` covering the validation and resource-limit logic added in the recent security pass. No production code changes.
+Harden `validateTodoFields` in `supabase/functions/todos-api/index.ts` so the server rejects non-http(s) URLs, matching the existing client UI and CSV importer guards.
 
-### New tests
+### Change
 
-**`addTodo` / `validateTodoFields`**
-- Rejects missing/empty/whitespace-only `text` with status 400.
-- Rejects `text` longer than 2000 chars.
-- Rejects unknown `category` (e.g. `"someday"`) with 400.
-- Rejects `notes` longer than 50000 chars.
-- Rejects `tags` array longer than 50 items, and any tag string > 100 chars.
-- Rejects `urls` array longer than 20 items, and any url string > 2000 chars.
-- Rejects invalid `recurrence` (e.g. `"yearly"`); accepts `null`.
+In `validateTodoFields`, inside the existing `f.urls` loop, parse each URL and require `http:` or `https:`:
 
-**`updateTodo`**
-- Throws 400 when `id` is missing.
-- Throws 400 when no whitelisted fields are present.
-- Silently drops non-whitelisted keys (e.g. `user_id`, `id` in body, arbitrary `foo`) — DB update only receives allowed fields.
-- Runs validation on supplied fields (e.g. invalid category in update is rejected).
+```ts
+const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
+for (const u of f.urls) {
+  if (typeof u !== "string" || u.length > LIMITS.urlLen) bad("Invalid url value");
+  let parsed: URL;
+  try { parsed = new URL(u); } catch { bad("Invalid url value"); }
+  if (!ALLOWED_URL_PROTOCOLS.includes(parsed.protocol)) bad("URL must use http or https");
+}
+```
 
-**`bulkInsert`**
-- Rejects non-array `todos` with 400.
-- Rejects > 2000 todos with 400.
-- Validates each item (one bad item fails the whole call).
-- Whitelist drops injection attempts: `id`, `created_at`, `updated_at`, `next_recurrence_at`, `recurring_source_id` never reach the DB row.
-- `user_id` from the request body is always overridden by the auth userId.
+This runs on every `add`, `update`, and `bulk_insert` path that goes through `validateTodoFields`, blocking `javascript:`, `data:`, `file:`, etc. before they reach the DB.
 
-**`deletePermanent` / `archiveCompleted`**
-- Reject non-array `ids` with 400.
-- Reject > 1000 ids with 400.
+### Tests
 
-**`autoTransitions`**
-- Rejects > 1000 ids in either array with 400.
-- For > 500 ids, splits into batched `.in('id', batch)` updates (no per-id round trips).
-- Skips the category-move branch when `idsToMoveToThisWeek` is undefined.
-
-### Out of scope
-
-- Auth/JWT flow (covered by integration; handlers receive `userId` directly).
-- CSV / landing-token tests (frontend/edge functions outside todos-api).
+Add cases to `supabase/functions/todos-api/index.test.ts`:
+- `addTodo` rejects `javascript:alert(1)` in `urls` with 400.
+- `addTodo` rejects `data:text/html,...` with 400.
+- `addTodo` rejects malformed strings like `"not a url"` with 400.
+- `updateTodo` rejects bad-protocol URL in `urls`.
+- `bulkInsert` rejects when any item has a bad-protocol URL.
+- Happy path: `http://example.com` and `https://example.com` still accepted.
 
 ### Verification
 
-Run `supabase--test_edge_functions` on `todos-api` and confirm all new + existing tests pass.
+Run `supabase--test_edge_functions` on `todos-api` and confirm new + existing tests pass.
+
+### Out of scope
+
+- The two unrelated findings on this view (`todo_images.user_id` column, `user_roles` admin self-grant) — separate plans if you want them addressed.
