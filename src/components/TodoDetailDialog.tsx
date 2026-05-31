@@ -137,7 +137,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = fa
   );
 }
 
-export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
+export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, isDeletingImage, deletingImageId, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
   const { t } = useI18n();
   const [tagInput, setTagInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
