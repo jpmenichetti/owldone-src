@@ -296,7 +296,6 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
         <div
           className={cn("flex-1 overflow-y-auto p-6 min-w-0 relative", isDraggingFile && "ring-2 ring-primary ring-inset")}
           onDragOver={(e) => {
-            if (readOnly) return;
             e.preventDefault();
             e.stopPropagation();
             setIsDraggingFile(true);
@@ -310,7 +309,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             e.preventDefault();
             e.stopPropagation();
             setIsDraggingFile(false);
-            if (readOnly || !todo) return;
+            if (!todo) return;
             const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
             files.forEach((file) => { addPendingPreview(file); onUploadImage(todo.id, file); });
           }}
@@ -332,35 +331,37 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                   {t(CATEGORY_LABEL_KEYS[todo.category as TodoCategory] || "category.others")}
                 </span>
               </div>
-              {readOnly ? (
-                <p className="text-base font-medium text-foreground">{todo.text}</p>
-              ) : (
-                <input
-                  value={localTitle}
-                  onChange={(e) => setLocalTitle(e.target.value)}
-                  onBlur={() => {
-                    const trimmed = localTitle.trim();
-                    if (trimmed && trimmed !== todo.text) {
-                      onUpdate(todo.id, { text: trimmed });
-                    } else {
-                      setLocalTitle(todo.text);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  className="text-base font-medium text-foreground bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-ring rounded px-0"
-                />
-              )}
+              <input
+                value={localTitle}
+                onChange={(e) => setLocalTitle(e.target.value)}
+                onBlur={() => {
+                  const trimmed = localTitle.trim();
+                  if (trimmed && trimmed !== todo.text) {
+                    onUpdate(todo.id, { text: trimmed });
+                  } else {
+                    setLocalTitle(todo.text);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="text-base font-medium text-foreground bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-ring rounded px-0"
+              />
             </div>
             <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity">
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </button>
           </div>
+
+          {readOnly && (
+            <div className="mb-4 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              {t("detail.archivedNotice")}
+            </div>
+          )}
 
           <div className="space-y-5">
             {/* Tags */}
