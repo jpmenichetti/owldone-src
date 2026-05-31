@@ -47,7 +47,7 @@ function computeNextRecurrence(recurrence: string): string {
   return now.toISOString();
 }
 
-function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; }) {
+function SignedImage({ img, readOnly, onDelete, onClick, isDeleting }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; isDeleting?: boolean; }) {
   const [src, setSrc] = useState<string>("");
 
   useEffect(() => {
@@ -67,7 +67,12 @@ function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; rea
   return (
     <div className="relative rounded-lg overflow-hidden border aspect-square cursor-pointer" onClick={() => src && onClick(src, img.file_name)}>
       {src ? <img src={src} alt={img.file_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
-      {!readOnly && (
+      {isDeleting && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      )}
+      {!readOnly && !isDeleting && (
         <button
           type="button"
           onClick={(e) => {
@@ -91,6 +96,8 @@ type Props = {
   onUploadImage: (todoId: string, file: File) => void;
   onDeleteImage: (id: string, storagePath: string) => void;
   isUploading?: boolean;
+  isDeletingImage?: boolean;
+  deletingImageId?: string | null;
   readOnly?: boolean;
   allTags?: string[];
   recurrenceEnabled?: boolean;
@@ -130,7 +137,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = fa
   );
 }
 
-export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
+export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, isDeletingImage, deletingImageId, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
   const { t } = useI18n();
   const [tagInput, setTagInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
@@ -438,11 +445,12 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
               {((todo.images && todo.images.length > 0) || pendingPreviews.length > 0) && (
                 <div className="grid grid-cols-3 gap-2">
                   {todo.images?.map((img) => (
-                    <SignedImage
+                  <SignedImage
                       key={img.id}
                       img={img}
                       onDelete={onDeleteImage}
                       onClick={(src, alt) => setPreviewImage({ src, alt })}
+                      isDeleting={isDeletingImage && deletingImageId === img.id}
                     />
                   ))}
                   {pendingPreviews.map((p) => (

@@ -27,7 +27,7 @@ const Index = () => {
   useTrackGoogleLanding();
   const { user, loading: authLoading } = useAuth();
   const { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, savingSource, searchText, setSearchText, debouncedSearchText } = useFilters();
-  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, archiveCompleted, deleteTag, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage } = useTodos(debouncedSearchText);
+  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, isDeletingImage, deletingImageId, archiveCompleted, deleteTag, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage } = useTodos(debouncedSearchText);
   const { t } = useI18n();
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
@@ -272,6 +272,8 @@ const Index = () => {
         onUploadImage={(todoId, file) => uploadImage.mutate({ todoId, file })}
         onDeleteImage={(id, storagePath) => deleteImage.mutate({ id, storagePath })}
         isUploading={uploadImage.isPending}
+        isDeletingImage={isDeletingImage}
+        deletingImageId={deletingImageId}
         readOnly={dialogReadOnly}
         allTags={allTags}
         recurrenceEnabled={hasFeature("recurrence")}
