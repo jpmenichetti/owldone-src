@@ -1,8 +1,19 @@
+import { useState } from "react";
 import { AlertTriangle, Tag, X, Search, Loader2, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { tagColor } from "@/lib/tagColors";
 import { useI18n } from "@/i18n/I18nContext";
 
@@ -16,10 +27,12 @@ interface FilterBarProps {
   isSavingTags?: boolean;
   completedCount?: number;
   isArchiving?: boolean;
+  deletingTag?: string | null;
   onArchive?: () => void;
   onSearchChange: (value: string) => void;
   onToggleOverdue: () => void;
   onToggleTag: (tag: string) => void;
+  onDeleteTag?: (tag: string) => void;
   onClear: () => void;
 }
 
@@ -33,13 +46,16 @@ const FilterBar = ({
   isSavingTags,
   completedCount = 0,
   isArchiving,
+  deletingTag,
   onArchive,
   onSearchChange,
   onToggleOverdue,
   onToggleTag,
+  onDeleteTag,
   onClear,
 }: FilterBarProps) => {
   const { t } = useI18n();
+  const [tagToDelete, setTagToDelete] = useState<string | null>(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -81,19 +97,47 @@ const FilterBar = ({
           <PopoverContent className="w-64 p-3" align="start">
             <p className="text-xs font-medium text-muted-foreground mb-2">{t("filter.selectTags")}</p>
             <div className="flex flex-wrap gap-1.5">
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => onToggleTag(tag)}
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-all cursor-pointer ${
-                    selectedTags.includes(tag)
-                      ? `${tagColor(tag)} ring-2 ring-ring ring-offset-1`
-                      : `${tagColor(tag)} opacity-50 hover:opacity-80`
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
+              {allTags.map((tag) => {
+                const selected = selectedTags.includes(tag);
+                const isDeleting = deletingTag === tag;
+                return (
+                  <span
+                    key={tag}
+                    className={`inline-flex items-center gap-1 rounded-full pl-2.5 pr-1 py-0.5 text-xs font-medium transition-all ${
+                      selected
+                        ? `${tagColor(tag)} ring-2 ring-ring ring-offset-1`
+                        : `${tagColor(tag)} opacity-50 hover:opacity-80`
+                    } ${isDeleting ? "opacity-40" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onToggleTag(tag)}
+                      disabled={isDeleting}
+                      className="cursor-pointer focus:outline-none"
+                    >
+                      {tag}
+                    </button>
+                    {onDeleteTag && (
+                      <button
+                        type="button"
+                        aria-label={t("filter.deleteTag").replace("{tag}", tag)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTagToDelete(tag);
+                        }}
+                        disabled={isDeleting}
+                        className="ml-0.5 inline-flex items-center justify-center rounded-full hover:bg-background/40 p-0.5 cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        {isDeleting ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <X className="h-3 w-3" />
+                        )}
+                      </button>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </PopoverContent>
         </Popover>
@@ -129,6 +173,28 @@ const FilterBar = ({
           <span className="hidden sm:inline">{t("todo.archiveCompleted")}</span>
         </Button>
       )}
+
+      <AlertDialog open={!!tagToDelete} onOpenChange={(open) => !open && setTagToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("filter.deleteTagConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("filter.deleteTagConfirmBody").replace("{tag}", tagToDelete ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (tagToDelete && onDeleteTag) onDeleteTag(tagToDelete);
+                setTagToDelete(null);
+              }}
+            >
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
