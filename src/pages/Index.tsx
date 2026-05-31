@@ -272,6 +272,8 @@ const Index = () => {
         onUploadImage={(todoId, file) => uploadImage.mutate({ todoId, file })}
         onDeleteImage={(id, storagePath) => deleteImage.mutate({ id, storagePath })}
         isUploading={uploadImage.isPending}
+        isDeletingImage={isDeletingImage}
+        deletingImageId={deletingImageId}
         readOnly={dialogReadOnly}
         allTags={allTags}
         recurrenceEnabled={hasFeature("recurrence")}
