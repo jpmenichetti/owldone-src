@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -18,7 +19,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       toast(label);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error(t("report.copyFailed"));
     }
   };
 
@@ -26,7 +27,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     <Button
       variant="ghost"
       size="icon"
-      aria-label={copied ? "Copied report to clipboard" : "Copy report to clipboard"}
+      aria-label={copied ? t("report.copiedAria") : t("report.copyAria")}
       className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0"
       onClick={handleCopy}
     >
@@ -49,7 +50,7 @@ function ReportCard({ report, copiedLabel }: { report: WeeklyReport; copiedLabel
       </div>
       <p className="text-sm text-foreground leading-relaxed">{report.summary}</p>
       <span className="text-[11px] text-muted-foreground">
-        {report.todos_count} {report.todos_count === 1 ? "task" : "tasks"}
+        {report.todos_count} {report.todos_count === 1 ? t("todo.taskSingular") : t("todo.taskPlural")}
       </span>
     </div>
   );
@@ -70,9 +71,9 @@ export default function WeeklyReportSection() {
         if (err.message === "no_tasks") {
           toast(t("report.noTasks"), { duration: 4000 });
         } else if (err.message === "rate_limited") {
-          toast.error("Rate limited. Please try again later.", { duration: 5000 });
+          toast.error(t("report.rateLimited"), { duration: 5000 });
         } else {
-          toast.error("Failed to generate report", { duration: 5000 });
+          toast.error(t("report.generateFailed"), { duration: 5000 });
         }
       },
     });
