@@ -540,6 +540,7 @@ const translations: Record<Language, Record<string, string>> = {
     "todos.error.toggleFailed": "Échec du changement d'état de la tâche",
     "todos.error.restoreFailed": "Échec de la restauration de la tâche",
     "todos.error.archiveFailed": "Échec de l'archivage des tâches",
+    "todos.error.deleteTagFailed": "Échec de la suppression du tag",
   },
   de: {
     "login.tagline": "Organisiere deine Aufgaben mit farbigen Kategorien, Multimedia-Notizen und intelligenten Lebenszyklusregeln.",
