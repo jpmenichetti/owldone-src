@@ -91,6 +91,8 @@ type Props = {
   onUploadImage: (todoId: string, file: File) => void;
   onDeleteImage: (id: string, storagePath: string) => void;
   isUploading?: boolean;
+  isDeletingImage?: boolean;
+  deletingImageId?: string | null;
   readOnly?: boolean;
   allTags?: string[];
   recurrenceEnabled?: boolean;
