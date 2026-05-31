@@ -47,7 +47,7 @@ function computeNextRecurrence(recurrence: string): string {
   return now.toISOString();
 }
 
-function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; }) {
+function SignedImage({ img, readOnly, onDelete, onClick, isDeleting }: { img: TodoImage; readOnly?: boolean; onDelete: (id: string, storagePath: string) => void; onClick: (src: string, alt: string) => void; isDeleting?: boolean; }) {
   const [src, setSrc] = useState<string>("");
 
   useEffect(() => {
@@ -67,7 +67,12 @@ function SignedImage({ img, readOnly, onDelete, onClick }: { img: TodoImage; rea
   return (
     <div className="relative rounded-lg overflow-hidden border aspect-square cursor-pointer" onClick={() => src && onClick(src, img.file_name)}>
       {src ? <img src={src} alt={img.file_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-muted"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>}
-      {!readOnly && (
+      {isDeleting && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      )}
+      {!readOnly && !isDeleting && (
         <button
           type="button"
           onClick={(e) => {
