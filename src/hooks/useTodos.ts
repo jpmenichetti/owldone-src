@@ -303,7 +303,10 @@ export function useTodos(searchText = "") {
         contentType: file.type,
       });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
+    },
   });
 
   const deleteImage = useMutation({
