@@ -140,7 +140,8 @@ export const handleRequest = async (req: Request): Promise<Response> => {
     });
 
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      console.error("log-landing-visit insert failed:", error);
+      return new Response(JSON.stringify({ error: "Internal server error" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -151,8 +152,8 @@ export const handleRequest = async (req: Request): Promise<Response> => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Unknown error";
-    return new Response(JSON.stringify({ error: msg }), {
+    console.error("log-landing-visit unhandled error:", e);
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

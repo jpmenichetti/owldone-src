@@ -1,11 +1,16 @@
-## Plan
+## Fix: Suppress raw error messages in `log-landing-visit`
 
-Add the provided Google tag (gtag.js) for Google Ads conversion tracking (`AW-18166385826`) into the `<head>` of `index.html`, right after the existing `google-site-verification` meta tag.
+Replace the two error-leak paths in `supabase/functions/log-landing-visit/index.ts` with a generic `"Internal server error"` response, and log the actual error server-side via `console.error` for debugging.
 
-### Files
-- `index.html` — insert `<script async src="https://www.googletagmanager.com/gtag/js?id=AW-18166385826"></script>` and the inline `gtag` init script into `<head>`.
+### Changes
 
-### Acceptance criteria
-- Tag loads asynchronously in the `<head>`.
-- `window.dataLayer` and `gtag` function are initialized.
-- Conversion ID `AW-18166385826` is configured.
+**`supabase/functions/log-landing-visit/index.ts`**
+- DB insert failure (~line 143): log `error` with `console.error`, return `{ error: "Internal server error" }` with status 500.
+- Outer `catch` block (~line 154): log `e` with `console.error`, return `{ error: "Internal server error" }` with status 500.
+
+**`supabase/functions/log-landing-visit/index.test.ts`**
+- Update the "returns 500 when DB insert fails" test to assert the response body is `{ error: "Internal server error" }` instead of containing the raw DB message.
+
+### Verification
+- Run `supabase--test_edge_functions` on `log-landing-visit`.
+- Mark finding `landing_visit_err_msg` as fixed.
