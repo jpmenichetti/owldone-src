@@ -371,6 +371,7 @@ const translations: Record<Language, Record<string, string>> = {
     "todos.error.toggleFailed": "Error al cambiar la tarea",
     "todos.error.restoreFailed": "Error al restaurar la tarea",
     "todos.error.archiveFailed": "Error al archivar las tareas",
+    "todos.error.deleteTagFailed": "Error al eliminar la etiqueta",
   },
   fr: {
     "login.tagline": "Organisez vos tâches avec des catégories colorées, des notes multimédias et des règles de cycle de vie intelligentes.",
