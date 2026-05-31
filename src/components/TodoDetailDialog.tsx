@@ -230,15 +230,15 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
     try {
       const parsed = new URL(url);
       if (!["http:", "https:"].includes(parsed.protocol)) {
-        toast.error("Only HTTP and HTTPS URLs are allowed");
+        toast.error(t("detail.urlNotHttp"));
         return;
       }
     } catch {
-      toast.error("Invalid URL format");
+      toast.error(t("detail.urlInvalid"));
       return;
     }
     if ((todo.urls || []).includes(url)) {
-      toast.error("Link already added");
+      toast.error(t("detail.urlDuplicate"));
       return;
     }
     onUpdate(todo.id, { urls: [...(todo.urls || []), url] });
