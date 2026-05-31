@@ -408,6 +408,14 @@ export function useTodos(searchText = "") {
     onSettled: invalidateAll,
   });
 
+  const deleteTag = useMutation({
+    mutationFn: async (tag: string) => {
+      await invoke("todos-api", { action: "delete_tag", tag });
+    },
+    onSuccess: invalidateAll,
+    onError: () => toast.error(t("todos.error.deleteTagFailed")),
+  });
+
   return {
     todos: virtualTodos,
     archived: virtualArchived,
@@ -424,6 +432,7 @@ export function useTodos(searchText = "") {
     deleteAllTodos,
     bulkInsertTodos,
     archiveCompleted,
+    deleteTag,
     fetchNextArchivedPage: archivedQuery.fetchNextPage,
     hasNextArchivedPage: !!archivedQuery.hasNextPage,
     isFetchingNextArchivedPage: archivedQuery.isFetchingNextPage,

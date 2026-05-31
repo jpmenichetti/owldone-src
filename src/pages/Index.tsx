@@ -27,7 +27,7 @@ const Index = () => {
   useTrackGoogleLanding();
   const { user, loading: authLoading } = useAuth();
   const { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, savingSource, searchText, setSearchText, debouncedSearchText } = useFilters();
-  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, archiveCompleted, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage } = useTodos(debouncedSearchText);
+  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, archiveCompleted, deleteTag, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage } = useTodos(debouncedSearchText);
   const { t } = useI18n();
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
@@ -184,6 +184,15 @@ const Index = () => {
               onToggleOverdue={toggleOverdue}
               onToggleTag={toggleTag}
               onClear={clearFilters}
+              deletingTag={deleteTag.isPending ? (deleteTag.variables as string) : null}
+              onDeleteTag={(tag) => {
+                deleteTag.mutate(tag, {
+                  onSuccess: () => {
+                    if (selectedTags.includes(tag)) toggleTag(tag);
+                    toast(t("filter.tagDeleted").replace("{tag}", tag));
+                  },
+                });
+              }}
               completedCount={completedIds.length}
               isArchiving={archiveCompleted.isPending}
               onArchive={() => {

@@ -399,6 +399,32 @@ export async function autoTransitions({ db, userId, params }: Ctx): Promise<Resp
   return json({ success: true });
 }
 
+export async function deleteTag({ db, userId, params }: Ctx): Promise<Response> {
+  const { tag } = params;
+  if (typeof tag !== "string" || tag.length === 0 || tag.length > LIMITS.tagLen) {
+    bad("Invalid tag");
+  }
+  const { data, error } = await db
+    .from("todos")
+    .select("id, tags")
+    .eq("user_id", userId)
+    .contains("tags", [tag]);
+  if (error) throw error;
+  const rows = data ?? [];
+  let affected = 0;
+  for (const row of rows) {
+    const nextTags = (Array.isArray(row.tags) ? row.tags : []).filter((t: string) => t !== tag);
+    const { error: updErr } = await db
+      .from("todos")
+      .update({ tags: nextTags })
+      .eq("id", row.id)
+      .eq("user_id", userId);
+    if (updErr) throw updErr;
+    affected++;
+  }
+  return json({ success: true, affected });
+}
+
 // ============================================================
 // Action registry
 // ============================================================
@@ -416,6 +442,7 @@ const handlers: Record<string, Handler> = {
   bulk_insert: bulkInsert,
   archive_completed: archiveCompleted,
   auto_transitions: autoTransitions,
+  delete_tag: deleteTag,
 };
 
 // ============================================================
