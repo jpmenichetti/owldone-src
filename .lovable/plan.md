@@ -1,42 +1,61 @@
-## Allow edits on completed/archived tasks
+## Allow tag deletion from the Tags filter popover
 
-GitHub issue #20: Completed tasks get auto-archived and the detail dialog opens them in fully read-only mode, so users can't add context after marking a task done. They want to edit title, notes (description), URLs, and images without restoring the task first.
+GitHub issue #19: Users need a way to remove a tag from every task (and from the system) directly from the "Tags" button in the filter control.
 
-### Approach
+### UX
 
-Today `TodoDetailDialog` has a single `readOnly` prop that locks every field. It's set to `true` whenever a todo is opened from `ArchiveSection` (URL `?ro=1`). The edge function (`todos-api`) already accepts updates regardless of `removed` state, so the backend needs no change.
+In `FilterBar`'s tags popover, each tag chip gets a small `x` button on the right side. Clicking the `x` (not the chip body):
 
-Introduce a softer mode for archived items: allow content edits (text, notes, urls, images, tags) while keeping structural actions disabled (category change, completion toggle, recurrence config, archive/delete from inside the dialog — restore stays the path back to active).
+1. Opens a confirmation `AlertDialog`: "Remove tag '{tag}' from all tasks? This will delete the tag from every active and archived task and cannot be undone."
+2. On confirm: the tag is stripped from every todo (active + archived) of the current user, removed from `selected_tags` if present, and the popover updates. Toast on success/failure (localized).
+3. Clicking the chip body keeps current behavior (toggle as filter).
 
-### Changes
+### Backend
 
-**`src/components/TodoDetailDialog.tsx`**
-- Replace the boolean `readOnly` with two effective flags derived from a new prop:
-  - `readOnly` → kept as the prop name for API stability, but reinterpreted as "archived-editable" when the todo is archived.
-  - Internally compute `contentLocked = false` (always editable for text/notes/urls/images/tags) and `structureLocked = readOnly` (used for recurrence section, category controls, completion toggle).
-- Unlock these sections when `readOnly` is true:
-  - Title input (line ~335 ternary: render the editable input instead of static text).
-  - Notes textarea (`readOnly={readOnly}` → drop).
-  - Tag add/remove controls (block around line ~381).
-  - URL add/remove controls (block around line ~496).
-  - Image upload + delete (blocks around lines ~463 and ~488; `SignedImage` `readOnly` prop dropped).
-- Keep gated under `readOnly`:
-  - `RecurrenceSection` (already returns null when `readOnly`).
-  - Any category-change shortcut buttons at the bottom of the panel (the "Category Move Shortcut" memory) — they should remain hidden so archived items aren't reshuffled into active categories without an explicit restore.
-- Add a small inline notice at the top of the dialog when the todo is archived, e.g. "Archived task — restore to change category or recurrence." Uses existing `t()` i18n keys (add new keys `detail.archivedEditableNotice` to `src/i18n/translations.ts` for all supported languages).
+**New action `delete_tag` in `supabase/functions/todos-api/index.ts`:**
+- Params: `{ tag: string }` (validated: non-empty string, ≤ `LIMITS.tagLen`).
+- Fetches all todos for `userId` (active + archived) where `tags @> ARRAY[tag]` using `.contains('tags', [tag])`.
+- For each matching row, updates `tags` to the array with the tag filtered out. Done in a single batched loop (chunks of 500) using individual updates — Postgres array remove via `array_remove` isn't reachable through PostgREST `.update()`, so we read+write the filtered array per row. Acceptable given typical tag cardinality.
+- Returns `{ success: true, affected: <count> }`.
+- Registered in the `handlers` map.
 
-**`src/components/ArchiveSection.tsx`** — no behavioral change needed; it still calls `onOpen(todo)` which sets `ro=1`. The dialog now interprets that as "archived but editable content".
+No DB migration needed — RLS already scopes by `user_id` and we use the service client filtered by `userId` like other handlers.
 
-**`src/i18n/translations.ts`**
-- Add `detail.archivedEditableNotice` translation for every supported locale.
+### Frontend
+
+**`src/hooks/useTodos.ts`:**
+- Add a `deleteTag` mutation invoking `todos-api` with `{ action: 'delete_tag', tag }`.
+- `onSuccess`: invalidate the todos and archived queries so all chips/cards refresh. Localized error toast via existing `todos.error.*` pattern (add a new key).
+
+**`src/hooks/useFilters.ts`:**
+- Add a helper `removeTagFromSelection(tag)` that, if the deleted tag was selected, persists `selected_tags` without it (reuses existing `upsertFilters`).
+
+**`src/components/FilterBar.tsx`:**
+- Add new prop `onDeleteTag: (tag: string) => void`.
+- In the tags popover, render each tag as a button with an inner `x` icon (`lucide-react` `X`). The outer container handles filter toggle; the inner `x` calls a handler that `stopPropagation`s and opens an `AlertDialog` (shadcn) with confirm/cancel.
+- Hide the `x` while a deletion for that tag is pending (use `deletingTag` state) and show a small spinner.
+- Localized labels: confirm title, body, confirm/cancel buttons, screen-reader label for the `x` button.
+
+**`src/pages/Index.tsx`:**
+- Wire `onDeleteTag={(tag) => deleteTag.mutate(tag, { onSuccess: () => { removeTagFromSelection(tag); toast(...); }})}`.
+- Pass `deleteTag` from `useTodos`.
+
+**`src/i18n/translations.ts`:**
+- Add for all 4 locales:
+  - `filter.deleteTag` (sr-only label "Delete tag {tag}")
+  - `filter.deleteTagConfirmTitle`
+  - `filter.deleteTagConfirmBody` (with `{tag}` placeholder)
+  - `common.delete`, `common.cancel` (reuse if present, otherwise add)
+  - `filter.tagDeleted` toast, `todos.error.deleteTag`
 
 ### Out of scope
 
-- No DB migration. Server already allows partial updates on archived rows.
-- No change to the toggle behavior in `TodoCard` (completed → archived) — that flow stays as-is.
-- No new permission to un-archive from the dialog (the existing Restore button in `ArchiveSection` is unchanged).
+- No bulk multi-tag delete UI.
+- No "rename tag" feature.
+- No new table — tags remain derived from `todos.tags`, so removing the tag from every todo automatically removes it from the popover (the `allTags` memo in `Index.tsx` recomputes after invalidation).
 
 ### Verification
 
-- Manual: complete a task → open from Archive → edit title, notes, add a URL, upload + delete an image; confirm changes persist after reload. Confirm recurrence section and category shortcuts remain hidden.
-- Run `bunx vitest run` for any affected snapshot/unit tests.
+- Manual: create a tag, attach to 2 active + 1 archived todo, delete via popover `x`, confirm dialog, verify chip disappears, all todos no longer show it, and a selected filter for it is cleared.
+- Tests: extend `supabase/functions/todos-api/index.test.ts` with a `delete_tag` case (active + archived, untouched-other-tag, invalid tag input → 400).
+- Run `bunx vitest run`.
