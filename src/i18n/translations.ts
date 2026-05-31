@@ -59,6 +59,7 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.weekly": "Weekly",
     "detail.monthly": "Monthly",
     "detail.recurrenceLocked": "Upgrade to enable recurring tasks",
+    "detail.archivedNotice": "Archived task — restore it to change category or recurrence.",
 
     // Archive
     "archive.title": "Archive",
@@ -198,6 +199,7 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.weekly": "Semanal",
     "detail.monthly": "Mensual",
     "detail.recurrenceLocked": "Mejora tu plan para habilitar tareas recurrentes",
+    "detail.archivedNotice": "Tarea archivada — restáurala para cambiar la categoría o la recurrencia.",
     "archive.title": "Archivo",
     "archive.created": "Creada",
     "archive.archived": "Archivada",
@@ -329,6 +331,7 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.weekly": "Hebdomadaire",
     "detail.monthly": "Mensuelle",
     "detail.recurrenceLocked": "Passez à un plan supérieur pour activer les tâches récurrentes",
+    "detail.archivedNotice": "Tâche archivée — restaurez-la pour changer la catégorie ou la récurrence.",
     "archive.title": "Archive",
     "archive.created": "Créée",
     "archive.archived": "Archivée",
@@ -460,6 +463,7 @@ const translations: Record<Language, Record<string, string>> = {
     "detail.weekly": "Wöchentlich",
     "detail.monthly": "Monatlich",
     "detail.recurrenceLocked": "Upgraden Sie, um wiederkehrende Aufgaben zu aktivieren",
+    "detail.archivedNotice": "Archivierte Aufgabe — stellen Sie sie wieder her, um Kategorie oder Wiederholung zu ändern.",
     "archive.title": "Archiv",
     "archive.created": "Erstellt",
     "archive.archived": "Archiviert",
