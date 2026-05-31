@@ -256,8 +256,9 @@ Deno.test("handleRequest: returns 500 when DB insert fails", async () => {
   try {
     const req = await buildPostRequest(validBody());
     const res = await handleRequest(req);
-    await res.text();
+    const body = JSON.parse(await res.text());
     assertEquals(res.status, 500);
+    assertEquals(body, { error: "Internal server error" });
   } finally {
     _setClientFactory(null);
   }
