@@ -709,6 +709,7 @@ const translations: Record<Language, Record<string, string>> = {
     "todos.error.toggleFailed": "Aufgabe konnte nicht umgeschaltet werden",
     "todos.error.restoreFailed": "Aufgabe konnte nicht wiederhergestellt werden",
     "todos.error.archiveFailed": "Aufgaben konnten nicht archiviert werden",
+    "todos.error.deleteTagFailed": "Tag konnte nicht gelöscht werden",
   },
 };
 
