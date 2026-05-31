@@ -296,7 +296,6 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
         <div
           className={cn("flex-1 overflow-y-auto p-6 min-w-0 relative", isDraggingFile && "ring-2 ring-primary ring-inset")}
           onDragOver={(e) => {
-            if (readOnly) return;
             e.preventDefault();
             e.stopPropagation();
             setIsDraggingFile(true);
@@ -310,7 +309,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             e.preventDefault();
             e.stopPropagation();
             setIsDraggingFile(false);
-            if (readOnly || !todo) return;
+            if (!todo) return;
             const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
             files.forEach((file) => { addPendingPreview(file); onUploadImage(todo.id, file); });
           }}
@@ -332,35 +331,37 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                   {t(CATEGORY_LABEL_KEYS[todo.category as TodoCategory] || "category.others")}
                 </span>
               </div>
-              {readOnly ? (
-                <p className="text-base font-medium text-foreground">{todo.text}</p>
-              ) : (
-                <input
-                  value={localTitle}
-                  onChange={(e) => setLocalTitle(e.target.value)}
-                  onBlur={() => {
-                    const trimmed = localTitle.trim();
-                    if (trimmed && trimmed !== todo.text) {
-                      onUpdate(todo.id, { text: trimmed });
-                    } else {
-                      setLocalTitle(todo.text);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      (e.target as HTMLInputElement).blur();
-                    }
-                  }}
-                  className="text-base font-medium text-foreground bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-ring rounded px-0"
-                />
-              )}
+              <input
+                value={localTitle}
+                onChange={(e) => setLocalTitle(e.target.value)}
+                onBlur={() => {
+                  const trimmed = localTitle.trim();
+                  if (trimmed && trimmed !== todo.text) {
+                    onUpdate(todo.id, { text: trimmed });
+                  } else {
+                    setLocalTitle(todo.text);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                className="text-base font-medium text-foreground bg-transparent border-none outline-none w-full focus:ring-1 focus:ring-ring rounded px-0"
+              />
             </div>
             <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity">
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </button>
           </div>
+
+          {readOnly && (
+            <div className="mb-4 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              {t("detail.archivedNotice")}
+            </div>
+          )}
 
           <div className="space-y-5">
             {/* Tags */}
@@ -370,55 +371,51 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                 {todo.tags?.map((tag) => (
                   <span key={tag} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", tagColor(tag))}>
                     {tag}
-                    {!readOnly && (
-                      <button onClick={() => removeTag(tag)} className="ml-0.5 hover:opacity-60">
-                        <X className="h-3 w-3" />
-                      </button>
-                    )}
+                    <button onClick={() => removeTag(tag)} className="ml-0.5 hover:opacity-60">
+                      <X className="h-3 w-3" />
+                    </button>
                   </span>
                 ))}
               </div>
-            {!readOnly && (
-              <div className="relative">
-                <div className="flex gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") { e.preventDefault(); addTag(); }
-                    }}
-                    placeholder={t("detail.addTag")}
-                    className="h-8 text-sm"
-                  />
-                  <Button size="sm" variant="outline" onClick={addTag} disabled={!tagInput.trim()}>
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                {tagInput.trim() && (() => {
-                  const suggestions = allTags.filter(
-                    (t) => t.toLowerCase().includes(tagInput.trim().toLowerCase()) && !todo.tags?.includes(t)
-                  );
-                  if (suggestions.length === 0) return null;
-                  return (
-                    <div className="absolute z-10 top-full left-0 mt-1 w-full max-h-32 overflow-y-auto rounded-md border bg-popover shadow-md">
-                      {suggestions.map((tag) => (
-                        <button
-                          key={tag}
-                          className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent truncate"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            onUpdate(todo.id, { tags: [...(todo.tags || []), tag] });
-                            setTagInput("");
-                          }}
-                        >
-                          {tag}
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
+            <div className="relative">
+              <div className="flex gap-2">
+                <Input
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); addTag(); }
+                  }}
+                  placeholder={t("detail.addTag")}
+                  className="h-8 text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={addTag} disabled={!tagInput.trim()}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
               </div>
-            )}
+              {tagInput.trim() && (() => {
+                const suggestions = allTags.filter(
+                  (t) => t.toLowerCase().includes(tagInput.trim().toLowerCase()) && !todo.tags?.includes(t)
+                );
+                if (suggestions.length === 0) return null;
+                return (
+                  <div className="absolute z-10 top-full left-0 mt-1 w-full max-h-32 overflow-y-auto rounded-md border bg-popover shadow-md">
+                    {suggestions.map((tag) => (
+                      <button
+                        key={tag}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent truncate"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          onUpdate(todo.id, { tags: [...(todo.tags || []), tag] });
+                          setTagInput("");
+                        }}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
             </div>
 
             {/* Notes */}
@@ -432,7 +429,6 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                 }}
                 placeholder={t("detail.addNotes")}
                 className="min-h-[100px] text-sm"
-                readOnly={readOnly}
               />
             </div>
 
@@ -445,7 +441,6 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                     <SignedImage
                       key={img.id}
                       img={img}
-                      readOnly={readOnly}
                       onDelete={onDeleteImage}
                       onClick={(src, alt) => setPreviewImage({ src, alt })}
                     />
@@ -460,18 +455,14 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                   ))}
                 </div>
               )}
-              {!readOnly && (
-                <>
-                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => fileRef.current?.click()} disabled={isUploading}>
-                    {isUploading ? (
-                      <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("detail.uploading") || "Uploading..."}</>
-                    ) : (
-                      <><Upload className="h-3.5 w-3.5" /> {t("detail.uploadImage")}</>
-                    )}
-                  </Button>
-                </>
-              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => fileRef.current?.click()} disabled={isUploading}>
+                {isUploading ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("detail.uploading") || "Uploading..."}</>
+                ) : (
+                  <><Upload className="h-3.5 w-3.5" /> {t("detail.uploadImage")}</>
+                )}
+              </Button>
             </div>
 
             {/* URLs */}
@@ -485,28 +476,24 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
                       {url}
                     </a>
                     <ExternalLink className="h-3 w-3 text-muted-foreground shrink-0" />
-                    {!readOnly && (
-                      <button onClick={() => removeUrl(idx)} className="hover:text-destructive">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+                    <button onClick={() => removeUrl(idx)} className="hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
                   </div>
                 ))}
               </div>
-              {!readOnly && (
-                <div className="flex gap-2">
-                  <Input
-                    value={urlInput}
-                    onChange={(e) => setUrlInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addUrl())}
-                    placeholder="https://..."
-                    className="h-8 text-sm"
-                  />
-                  <Button size="sm" variant="outline" onClick={addUrl} disabled={!urlInput.trim()}>
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2">
+                <Input
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addUrl())}
+                  placeholder="https://..."
+                  className="h-8 text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={addUrl} disabled={!urlInput.trim()}>
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
 
             {/* Recurrence */}
