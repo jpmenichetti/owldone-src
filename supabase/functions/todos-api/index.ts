@@ -155,6 +155,17 @@ export async function listTodos({ db, userId }: Ctx): Promise<Response> {
   );
 }
 
+async function attachImages(db: DbClient, todos: any[]): Promise<any[]> {
+  const todoIds = todos.map((t: any) => t.id);
+  if (todoIds.length === 0) return todos;
+  const { data } = await db.from("todo_images").select("*").in("todo_id", todoIds);
+  const images = data || [];
+  return todos.map((t: any) => ({
+    ...t,
+    images: images.filter((img: any) => img.todo_id === t.id),
+  }));
+}
+
 export async function listArchived({ db, userId, params }: Ctx): Promise<Response> {
   const { searchText, pageSize, pageOffset } = params;
   if (searchText) {
@@ -176,7 +187,8 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
 
     const start = Number(pageOffset) || 0;
     const size = Number(pageSize) || 20;
-    return json(matched.slice(start, start + size));
+    const page = matched.slice(start, start + size);
+    return json(await attachImages(db, page));
   }
 
   const from = pageOffset;
@@ -189,7 +201,7 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
     .order("removed_at", { ascending: false })
     .range(from, to);
   if (error) throw error;
-  return json(data ?? []);
+  return json(await attachImages(db, data ?? []));
 }
 
 export async function countArchived({ db, userId, params }: Ctx): Promise<Response> {
