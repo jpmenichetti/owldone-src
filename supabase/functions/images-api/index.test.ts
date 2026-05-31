@@ -170,6 +170,7 @@ Deno.test("uploadImage: success uses sanitised filename and detected mime", asyn
 
   const insertCall = calls.find((c) => c.kind === "insert-image")!;
   assertEquals(insertCall.payload.todo_id, TODO_ID);
+  assertEquals(insertCall.payload.user_id, USER_ID);
   assert(!insertCall.payload.file_name.includes(".."));
 });
 
