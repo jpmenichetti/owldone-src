@@ -184,6 +184,15 @@ const Index = () => {
               onToggleOverdue={toggleOverdue}
               onToggleTag={toggleTag}
               onClear={clearFilters}
+              deletingTag={deleteTag.isPending ? (deleteTag.variables as string) : null}
+              onDeleteTag={(tag) => {
+                deleteTag.mutate(tag, {
+                  onSuccess: () => {
+                    if (selectedTags.includes(tag)) toggleTag(tag);
+                    toast(t("filter.tagDeleted").replace("{tag}", tag));
+                  },
+                });
+              }}
               completedCount={completedIds.length}
               isArchiving={archiveCompleted.isPending}
               onArchive={() => {
