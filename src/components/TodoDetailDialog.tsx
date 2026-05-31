@@ -353,7 +353,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             </div>
             <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity">
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("common.close")}</span>
             </button>
           </div>
 

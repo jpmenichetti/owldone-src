@@ -137,8 +137,8 @@ export default function Navbar() {
               </Tooltip>
             </TooltipProvider>
             {isAdmin && (
-              <Button variant="ghost" size="icon" asChild aria-label="Admin dashboard">
-                <Link to="/admin" className="flex items-center gap-1" aria-label="Admin dashboard">
+              <Button variant="ghost" size="icon" asChild aria-label={t("nav.adminDashboard")}>
+                <Link to="/admin" className="flex items-center gap-1" aria-label={t("nav.adminDashboard")}>
                   <Shield className="h-4 w-4" />
                 </Link>
               </Button>
@@ -154,7 +154,7 @@ export default function Navbar() {
             />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" aria-label="Open user menu" className="cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" aria-label={t("nav.openUserMenu")} className="cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user?.user_metadata?.avatar_url} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-xs">
