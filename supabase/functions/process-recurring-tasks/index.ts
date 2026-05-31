@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
             todo_id: inserted.id,
             storage_path: img.storage_path,
             file_name: img.file_name,
+            user_id: todo.user_id,
           }))
         );
       }
