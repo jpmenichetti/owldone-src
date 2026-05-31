@@ -5,6 +5,8 @@ import { useAuth } from "./useAuth";
 import { useSimulatedTime } from "./useSimulatedTime";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/I18nContext";
+
 
 export type Todo = Tables<"todos"> & { images?: Tables<"todo_images">[] };
 export type TodoCategory = "today" | "this_week" | "next_week" | "others";
@@ -27,6 +29,7 @@ export function useTodos(searchText = "") {
   const { user } = useAuth();
   const { getNow, simulatedDate } = useSimulatedTime();
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["todos"] });
