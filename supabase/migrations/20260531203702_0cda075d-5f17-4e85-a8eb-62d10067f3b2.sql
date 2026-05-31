@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.set_todo_image_user_id() FROM PUBLIC, anon, authenticated;
