@@ -202,17 +202,35 @@ export function useTodos(searchText = "") {
     },
     onMutate: async ({ id, ...updates }) => {
       await queryClient.cancelQueries({ queryKey: ["todos"] });
+      await queryClient.cancelQueries({ queryKey: ["archived-todos"] });
       const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id]);
+      const previousArchived = queryClient.getQueryData(["archived-todos", user?.id, searchText]);
       queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) =>
         (old ?? []).map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
       );
-      return { previous };
+      queryClient.setQueryData<{ pages: Todo[][]; pageParams: unknown[] }>(
+        ["archived-todos", user?.id, searchText],
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
+            ),
+          };
+        }
+      );
+      return { previous, previousArchived };
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
+      queryClient.setQueryData(["archived-todos", user?.id, searchText], context?.previousArchived);
       toast.error(t("todos.error.updateFailed"));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
+    },
   });
 
   const toggleComplete = useMutation({
