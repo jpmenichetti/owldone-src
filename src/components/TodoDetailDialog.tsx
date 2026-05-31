@@ -230,15 +230,15 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
     try {
       const parsed = new URL(url);
       if (!["http:", "https:"].includes(parsed.protocol)) {
-        toast.error("Only HTTP and HTTPS URLs are allowed");
+        toast.error(t("detail.urlNotHttp"));
         return;
       }
     } catch {
-      toast.error("Invalid URL format");
+      toast.error(t("detail.urlInvalid"));
       return;
     }
     if ((todo.urls || []).includes(url)) {
-      toast.error("Link already added");
+      toast.error(t("detail.urlDuplicate"));
       return;
     }
     onUpdate(todo.id, { urls: [...(todo.urls || []), url] });
@@ -353,7 +353,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
             </div>
             <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100 transition-opacity">
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("common.close")}</span>
             </button>
           </div>
 

@@ -5,6 +5,8 @@ import { useAuth } from "./useAuth";
 import { useSimulatedTime } from "./useSimulatedTime";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/I18nContext";
+
 
 export type Todo = Tables<"todos"> & { images?: Tables<"todo_images">[] };
 export type TodoCategory = "today" | "this_week" | "next_week" | "others";
@@ -27,6 +29,7 @@ export function useTodos(searchText = "") {
   const { user } = useAuth();
   const { getNow, simulatedDate } = useSimulatedTime();
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["todos"] });
@@ -171,7 +174,7 @@ export function useTodos(searchText = "") {
         try {
           await invoke("todos-api", { action: "remove", id: realId });
         } catch {
-          toast.error("Failed to remove todo");
+          toast.error(t("todos.error.removeFailed"));
         }
         return;
       }
@@ -184,7 +187,7 @@ export function useTodos(searchText = "") {
       pendingCreateIdsRef.current.delete(vars.tempId);
       pendingRemoveIdsRef.current.delete(vars.tempId);
       queryClient.setQueryData(["todos", user?.id], context?.previous);
-      toast.error("Failed to add todo");
+      toast.error(t("todos.error.addFailed"));
     },
     onSettled: (_data, _error, vars) => {
       if (vars?.tempId) pendingCreateIdsRef.current.delete(vars.tempId);
@@ -207,7 +210,7 @@ export function useTodos(searchText = "") {
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
-      toast.error("Failed to update todo");
+      toast.error(t("todos.error.updateFailed"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
   });
@@ -229,7 +232,7 @@ export function useTodos(searchText = "") {
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
-      toast.error("Failed to toggle todo");
+      toast.error(t("todos.error.toggleFailed"));
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
   });
@@ -259,7 +262,7 @@ export function useTodos(searchText = "") {
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
-      toast.error("Failed to remove todo");
+      toast.error(t("todos.error.removeFailed"));
     },
     onSettled: invalidateAll,
   });
@@ -305,7 +308,7 @@ export function useTodos(searchText = "") {
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["archived-todos", user?.id, ""], context?.previousArchived);
-      toast.error("Failed to restore todo");
+      toast.error(t("todos.error.restoreFailed"));
     },
     onSettled: invalidateAll,
   });
@@ -400,7 +403,7 @@ export function useTodos(searchText = "") {
     },
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
-      toast.error("Failed to archive todos");
+      toast.error(t("todos.error.archiveFailed"));
     },
     onSettled: invalidateAll,
   });
