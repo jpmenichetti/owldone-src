@@ -160,6 +160,42 @@ const translations: Record<Language, Record<string, string>> = {
     "login.headline": "Close the day. See your progress. All done.",
     "login.description": "OwlDone helps you close each day and see your progress over time.",
     "login.philosophy": "Owls see in the dark.\nThey observe quietly.\nThey watch over time.",
+
+    // Common
+    "common.close": "Close",
+
+    // Detail dialog (URL validation)
+    "detail.urlNotHttp": "Only HTTP and HTTPS URLs are allowed",
+    "detail.urlInvalid": "Invalid URL format",
+    "detail.urlDuplicate": "Link already added",
+
+    // Todo card aria-labels
+    "todo.dragToReorder": "Drag to reorder",
+    "todo.markComplete": "Mark \"{text}\" as completed",
+    "todo.markIncomplete": "Mark \"{text}\" as incomplete",
+    "todo.deleteTask": "Delete task: {text}",
+    "todo.openDetails": "Open task details: {text}",
+    "todo.taskSingular": "task",
+    "todo.taskPlural": "tasks",
+
+    // Navbar
+    "nav.adminDashboard": "Admin dashboard",
+    "nav.openUserMenu": "Open user menu",
+
+    // Weekly report extras
+    "report.copyAria": "Copy report to clipboard",
+    "report.copiedAria": "Copied report to clipboard",
+    "report.copyFailed": "Failed to copy",
+    "report.rateLimited": "Rate limited. Please try again later.",
+    "report.generateFailed": "Failed to generate report",
+
+    // Todos hook errors
+    "todos.error.removeFailed": "Failed to remove todo",
+    "todos.error.addFailed": "Failed to add todo",
+    "todos.error.updateFailed": "Failed to update todo",
+    "todos.error.toggleFailed": "Failed to toggle todo",
+    "todos.error.restoreFailed": "Failed to restore todo",
+    "todos.error.archiveFailed": "Failed to archive todos",
   },
   es: {
     "login.tagline": "Organiza tus tareas con categorías coloridas, notas multimedia y reglas de ciclo de vida inteligentes.",
@@ -292,6 +328,36 @@ const translations: Record<Language, Record<string, string>> = {
     "login.headline": "Cierra el día. Observa tu progreso. Todo listo.",
     "login.description": "OwlDone te ayuda a cerrar cada día y ver tu progreso a lo largo del tiempo.",
     "login.philosophy": "Los búhos ven en la oscuridad.\nObservan en silencio.\nVigilan a lo largo del tiempo.",
+
+    "common.close": "Cerrar",
+
+    "detail.urlNotHttp": "Solo se permiten URLs HTTP y HTTPS",
+    "detail.urlInvalid": "Formato de URL inválido",
+    "detail.urlDuplicate": "El enlace ya está agregado",
+
+    "todo.dragToReorder": "Arrastrar para reordenar",
+    "todo.markComplete": "Marcar \"{text}\" como completada",
+    "todo.markIncomplete": "Marcar \"{text}\" como incompleta",
+    "todo.deleteTask": "Eliminar tarea: {text}",
+    "todo.openDetails": "Abrir detalles de la tarea: {text}",
+    "todo.taskSingular": "tarea",
+    "todo.taskPlural": "tareas",
+
+    "nav.adminDashboard": "Panel de administración",
+    "nav.openUserMenu": "Abrir menú de usuario",
+
+    "report.copyAria": "Copiar reporte al portapapeles",
+    "report.copiedAria": "Reporte copiado al portapapeles",
+    "report.copyFailed": "Error al copiar",
+    "report.rateLimited": "Límite de solicitudes alcanzado. Inténtalo de nuevo más tarde.",
+    "report.generateFailed": "Error al generar el reporte",
+
+    "todos.error.removeFailed": "Error al eliminar la tarea",
+    "todos.error.addFailed": "Error al agregar la tarea",
+    "todos.error.updateFailed": "Error al actualizar la tarea",
+    "todos.error.toggleFailed": "Error al cambiar la tarea",
+    "todos.error.restoreFailed": "Error al restaurar la tarea",
+    "todos.error.archiveFailed": "Error al archivar las tareas",
   },
   fr: {
     "login.tagline": "Organisez vos tâches avec des catégories colorées, des notes multimédias et des règles de cycle de vie intelligentes.",
@@ -424,6 +490,36 @@ const translations: Record<Language, Record<string, string>> = {
     "login.headline": "Clôturez la journée. Suivez vos progrès. Tout est fait.",
     "login.description": "OwlDone vous aide à clôturer chaque journée et à suivre vos progrès au fil du temps.",
     "login.philosophy": "Les hiboux voient dans le noir.\nIls observent en silence.\nIls veillent au fil du temps.",
+
+    "common.close": "Fermer",
+
+    "detail.urlNotHttp": "Seules les URLs HTTP et HTTPS sont autorisées",
+    "detail.urlInvalid": "Format d'URL invalide",
+    "detail.urlDuplicate": "Lien déjà ajouté",
+
+    "todo.dragToReorder": "Glisser pour réorganiser",
+    "todo.markComplete": "Marquer \"{text}\" comme terminée",
+    "todo.markIncomplete": "Marquer \"{text}\" comme non terminée",
+    "todo.deleteTask": "Supprimer la tâche : {text}",
+    "todo.openDetails": "Ouvrir les détails de la tâche : {text}",
+    "todo.taskSingular": "tâche",
+    "todo.taskPlural": "tâches",
+
+    "nav.adminDashboard": "Tableau de bord administrateur",
+    "nav.openUserMenu": "Ouvrir le menu utilisateur",
+
+    "report.copyAria": "Copier le rapport dans le presse-papiers",
+    "report.copiedAria": "Rapport copié dans le presse-papiers",
+    "report.copyFailed": "Échec de la copie",
+    "report.rateLimited": "Limite de requêtes atteinte. Veuillez réessayer plus tard.",
+    "report.generateFailed": "Échec de la génération du rapport",
+
+    "todos.error.removeFailed": "Échec de la suppression de la tâche",
+    "todos.error.addFailed": "Échec de l'ajout de la tâche",
+    "todos.error.updateFailed": "Échec de la mise à jour de la tâche",
+    "todos.error.toggleFailed": "Échec du changement d'état de la tâche",
+    "todos.error.restoreFailed": "Échec de la restauration de la tâche",
+    "todos.error.archiveFailed": "Échec de l'archivage des tâches",
   },
   de: {
     "login.tagline": "Organisiere deine Aufgaben mit farbigen Kategorien, Multimedia-Notizen und intelligenten Lebenszyklusregeln.",
@@ -556,6 +652,36 @@ const translations: Record<Language, Record<string, string>> = {
     "login.headline": "Schließe den Tag ab. Sieh deinen Fortschritt. Alles erledigt.",
     "login.description": "OwlDone hilft dir, jeden Tag abzuschließen und deinen Fortschritt im Blick zu behalten.",
     "login.philosophy": "Eulen sehen im Dunkeln.\nSie beobachten still.\nSie wachen über die Zeit.",
+
+    "common.close": "Schließen",
+
+    "detail.urlNotHttp": "Nur HTTP- und HTTPS-URLs sind erlaubt",
+    "detail.urlInvalid": "Ungültiges URL-Format",
+    "detail.urlDuplicate": "Link bereits hinzugefügt",
+
+    "todo.dragToReorder": "Ziehen zum Neuordnen",
+    "todo.markComplete": "\"{text}\" als erledigt markieren",
+    "todo.markIncomplete": "\"{text}\" als unerledigt markieren",
+    "todo.deleteTask": "Aufgabe löschen: {text}",
+    "todo.openDetails": "Aufgabendetails öffnen: {text}",
+    "todo.taskSingular": "Aufgabe",
+    "todo.taskPlural": "Aufgaben",
+
+    "nav.adminDashboard": "Admin-Dashboard",
+    "nav.openUserMenu": "Benutzermenü öffnen",
+
+    "report.copyAria": "Bericht in die Zwischenablage kopieren",
+    "report.copiedAria": "Bericht in die Zwischenablage kopiert",
+    "report.copyFailed": "Kopieren fehlgeschlagen",
+    "report.rateLimited": "Anfragelimit erreicht. Bitte später erneut versuchen.",
+    "report.generateFailed": "Bericht konnte nicht generiert werden",
+
+    "todos.error.removeFailed": "Aufgabe konnte nicht entfernt werden",
+    "todos.error.addFailed": "Aufgabe konnte nicht hinzugefügt werden",
+    "todos.error.updateFailed": "Aufgabe konnte nicht aktualisiert werden",
+    "todos.error.toggleFailed": "Aufgabe konnte nicht umgeschaltet werden",
+    "todos.error.restoreFailed": "Aufgabe konnte nicht wiederhergestellt werden",
+    "todos.error.archiveFailed": "Aufgaben konnten nicht archiviert werden",
   },
 };
 
