@@ -162,6 +162,7 @@ export type Database = {
           storage_path: string
           todo_id: string
           uploaded_at: string
+          user_id: string
         }
         Insert: {
           file_name?: string
@@ -169,6 +170,7 @@ export type Database = {
           storage_path: string
           todo_id: string
           uploaded_at?: string
+          user_id: string
         }
         Update: {
           file_name?: string
@@ -176,6 +178,7 @@ export type Database = {
           storage_path?: string
           todo_id?: string
           uploaded_at?: string
+          user_id?: string
         }
         Relationships: [
           {
