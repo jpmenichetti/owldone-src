@@ -445,11 +445,12 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
               {((todo.images && todo.images.length > 0) || pendingPreviews.length > 0) && (
                 <div className="grid grid-cols-3 gap-2">
                   {todo.images?.map((img) => (
-                    <SignedImage
+                  <SignedImage
                       key={img.id}
                       img={img}
                       onDelete={onDeleteImage}
                       onClick={(src, alt) => setPreviewImage({ src, alt })}
+                      isDeleting={isDeletingImage && deletingImageId === img.id}
                     />
                   ))}
                   {pendingPreviews.map((p) => (
