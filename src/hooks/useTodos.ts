@@ -452,6 +452,8 @@ export function useTodos(searchText = "") {
     restoreTodo,
     uploadImage,
     deleteImage,
+    isDeletingImage: deleteImage.isPending,
+    deletingImageId: deleteImage.variables?.id ?? null,
     permanentlyDeleteTodos,
     deleteAllTodos,
     bulkInsertTodos,
