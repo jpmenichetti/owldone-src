@@ -20,6 +20,12 @@ const translations: Record<Language, Record<string, string>> = {
     "filter.selectTags": "Select tags to filter",
     "filter.clear": "Clear filters",
     "filter.search": "Search todos...",
+    "filter.deleteTag": "Delete tag {tag}",
+    "filter.deleteTagConfirmTitle": "Delete tag?",
+    "filter.deleteTagConfirmBody": "Remove tag \"{tag}\" from every task? This deletes the tag from all active and archived tasks and cannot be undone.",
+    "filter.tagDeleted": "Tag \"{tag}\" deleted",
+    "common.delete": "Delete",
+    "common.cancel": "Cancel",
 
     // Categories
     "category.today": "Today",
