@@ -99,6 +99,7 @@ export const uploadImage: Handler = async ({ db, userId, params }) => {
     todo_id: todoId,
     storage_path: path,
     file_name: safeName,
+    user_id: userId,
   });
   if (dbError) throw dbError;
 
