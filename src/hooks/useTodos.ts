@@ -313,7 +313,10 @@ export function useTodos(searchText = "") {
     mutationFn: async ({ id, storagePath }: { id: string; storagePath: string }) => {
       await invoke("images-api", { action: "delete", id, storagePath });
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
+    },
   });
 
   const restoreTodo = useMutation({
