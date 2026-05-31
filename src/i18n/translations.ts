@@ -202,6 +202,7 @@ const translations: Record<Language, Record<string, string>> = {
     "todos.error.toggleFailed": "Failed to toggle todo",
     "todos.error.restoreFailed": "Failed to restore todo",
     "todos.error.archiveFailed": "Failed to archive todos",
+    "todos.error.deleteTagFailed": "Failed to delete tag",
   },
   es: {
     "login.tagline": "Organiza tus tareas con categorías coloridas, notas multimedia y reglas de ciclo de vida inteligentes.",
