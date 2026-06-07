@@ -3,6 +3,8 @@ const EXPECTED_HEADERS = [
   "completed", "completed_at", "removed", "removed_at",
   "created_at", "updated_at",
 ];
+const MAX_WORKSPACE_NAME = 100;
+
 
 const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -126,7 +128,14 @@ export interface ImportedTodo {
   removed_at: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * Optional workspace name parsed from the CSV. `null` means the row had no
+   * workspace (or the column was absent) — restore should put it into the
+   * user's default workspace.
+   */
+  workspace_name: string | null;
 }
+
 
 export interface ImportResult {
   validTodos: ImportedTodo[];
@@ -214,6 +223,11 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
       const completed_at = get("completed_at");
       const removed_at = get("removed_at");
 
+      // Workspace column is optional (older backups don't have it).
+      const workspaceRaw = headerIndex["workspace"] !== undefined ? get("workspace") : "";
+      const workspaceClean = sanitizeText(workspaceRaw).trim().slice(0, MAX_WORKSPACE_NAME);
+      const workspace_name = workspaceClean || null;
+
       validTodos.push({
         text: todoText,
         category,
@@ -226,7 +240,9 @@ export async function importCsvFile(file: File): Promise<ImportResult> {
         removed_at: removed_at && ISO_DATE_PATTERN.test(removed_at) ? removed_at : null,
         created_at,
         updated_at,
+        workspace_name,
       });
+
     } catch {
       skippedCount++;
     }

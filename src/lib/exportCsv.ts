@@ -12,7 +12,10 @@ const CSV_HEADERS = [
   "removed_at",
   "created_at",
   "updated_at",
+  "workspace",
 ];
+
+export type ExportableTodo = Todo & { workspace_name?: string | null };
 
 function escapeCsvValue(value: string | null | undefined): string {
   if (value == null) return "";
@@ -25,7 +28,7 @@ function escapeCsvValue(value: string | null | undefined): string {
   return str;
 }
 
-export function exportTodosCsv(todos: Todo[]): void {
+export function exportTodosCsv(todos: ExportableTodo[]): void {
   const rows: string[] = [CSV_HEADERS.join(",")];
 
   for (const todo of todos) {
@@ -41,6 +44,7 @@ export function exportTodosCsv(todos: Todo[]): void {
       escapeCsvValue(todo.removed_at),
       escapeCsvValue(todo.created_at),
       escapeCsvValue(todo.updated_at),
+      escapeCsvValue(todo.workspace_name ?? ""),
     ];
     rows.push(row.join(","));
   }
