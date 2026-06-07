@@ -1,5 +1,5 @@
 import type { WeeklyReport } from "@/hooks/useWeeklyReports";
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, PageBreak } from "docx";
+import { Document, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
 import jsPDF from "jspdf";
 
 type Translator = (key: string) => string;
