@@ -188,6 +188,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container max-w-4xl py-6 space-y-6">
+        <WorkspaceTabs />
         {(() => {
           const completedIds = filteredTodos.filter((t) => t.completed).map((t) => t.id);
           return (
