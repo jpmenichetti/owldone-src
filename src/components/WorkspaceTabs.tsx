@@ -127,9 +127,11 @@ export default function WorkspaceTabs() {
                 onClick={() => setActiveWorkspaceId(ws.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
               >
-                {ws.is_default && (
+                {settingDefaultId === ws.id ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : ws.is_default ? (
                   <Star className={cn("h-3 w-3", active ? "fill-current" : "fill-amber-400 text-amber-400")} />
-                )}
+                ) : null}
                 <span className="max-w-[160px] truncate">{ws.name}</span>
               </button>
               <DropdownMenu>
