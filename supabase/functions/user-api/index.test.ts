@@ -123,7 +123,12 @@ Deno.test("getFilters returns row scoped to userId", async () => {
 Deno.test("getFilters defaults when no row exists", async () => {
   const db = buildMockDb({ user_filters: () => ({ data: null, error: null }) });
   const res = await getFilters({ db: db as any, userId: USER_ID, params: {} });
-  assertEquals(await readJson(res), { show_overdue: false, selected_tags: [] });
+  assertEquals(await readJson(res), {
+    show_overdue: false,
+    selected_tags: [],
+    workspace_id: "ws-default",
+  });
+
 });
 
 Deno.test("upsertFilters forces user_id from auth context (ignores body user_id)", async () => {
