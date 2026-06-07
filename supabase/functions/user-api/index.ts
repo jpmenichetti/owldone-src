@@ -280,7 +280,32 @@ export async function deleteWorkspace({ db, userId, params }: Ctx): Promise<Resp
   if (target.is_default) throw { status: 400, message: "Cannot delete default workspace" };
   if ((ws ?? []).length <= 1) throw { status: 400, message: "Cannot delete last workspace" };
 
-  // FK cascade will remove todos, weekly_reports, user_filters
+  const defaultWs = (ws ?? []).find((w: any) => w.is_default);
+  if (!defaultWs) throw { status: 400, message: "No default workspace set" };
+
+  // Reassign todos, weekly_reports, user_filters to the default workspace before deletion
+  const { error: todosErr } = await db
+    .from("todos")
+    .update({ workspace_id: defaultWs.id })
+    .eq("workspace_id", id)
+    .eq("user_id", userId);
+  if (todosErr) throw todosErr;
+
+  const { error: reportsErr } = await db
+    .from("weekly_reports")
+    .update({ workspace_id: defaultWs.id })
+    .eq("workspace_id", id)
+    .eq("user_id", userId);
+  if (reportsErr) throw reportsErr;
+
+  // user_filters are per-workspace UI state; just delete them for the target workspace
+  const { error: filtersErr } = await db
+    .from("user_filters")
+    .delete()
+    .eq("workspace_id", id)
+    .eq("user_id", userId);
+  if (filtersErr) throw filtersErr;
+
   const { error } = await db
     .from("workspaces")
     .delete()
@@ -289,6 +314,7 @@ export async function deleteWorkspace({ db, userId, params }: Ctx): Promise<Resp
   if (error) throw error;
   return json({ success: true });
 }
+
 
 export async function setDefaultWorkspace({ db, userId, params }: Ctx): Promise<Response> {
   const { id } = params;
