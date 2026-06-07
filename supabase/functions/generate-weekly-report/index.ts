@@ -25,24 +25,19 @@ serve(async (req) => {
       });
     }
 
-    // Determine mode: manual (user JWT) or cron (service role)
     const authHeader = req.headers.get("Authorization");
     let userIds: string[] = [];
-    let weekStart: Date;
-    let weekEnd: Date;
 
-    // Calculate current week (Monday-Sunday)
     const now = new Date();
-    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
+    const dayOfWeek = now.getDay();
     const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    weekStart = new Date(now);
+    const weekStart = new Date(now);
     weekStart.setDate(now.getDate() + mondayOffset);
     weekStart.setHours(0, 0, 0, 0);
-    weekEnd = new Date(weekStart);
+    const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
 
-    // Check body for mode
     let body: Record<string, unknown> = {};
     try {
       body = await req.json();
@@ -51,8 +46,6 @@ serve(async (req) => {
     }
 
     if (body.mode === "cron") {
-      // Cron mode: require shared secret (validated against vault) OR
-      // service-role bearer token. Never trust caller-supplied body fields alone.
       const providedSecret = req.headers.get("x-cron-secret");
       const bearer = authHeader?.startsWith("Bearer ")
         ? authHeader.replace("Bearer ", "")
@@ -75,7 +68,6 @@ serve(async (req) => {
         });
       }
 
-      // Cron mode: generate for all users who have completed todos this week
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: users, error: usersErr } = await adminClient
         .from("todos")
@@ -87,7 +79,6 @@ serve(async (req) => {
       if (usersErr) throw usersErr;
       userIds = [...new Set((users || []).map((u: { user_id: string }) => u.user_id))];
     } else {
-      // Manual mode: validate user JWT
       if (!authHeader?.startsWith("Bearer ")) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
@@ -111,32 +102,83 @@ serve(async (req) => {
     }
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
-    const results: Array<{ user_id: string; status: string }> = [];
+    const results: Array<{ user_id: string; workspace_id?: string; status: string }> = [];
 
-    for (const userId of userIds) {
-      // Fetch completed & archived todos for this week
+    type Job = { userId: string; workspaceId: string };
+    const jobs: Job[] = [];
+
+    if (body.mode === "cron") {
+      for (const uid of userIds) {
+        const { data: rows } = await adminClient
+          .from("todos")
+          .select("workspace_id")
+          .eq("user_id", uid)
+          .eq("completed", true)
+          .gte("completed_at", weekStart.toISOString())
+          .lte("completed_at", weekEnd.toISOString());
+        const wsIds = [...new Set((rows ?? []).map((r: any) => r.workspace_id).filter(Boolean))];
+        for (const wid of wsIds) jobs.push({ userId: uid, workspaceId: wid as string });
+      }
+    } else {
+      const uid = userIds[0];
+      let workspaceId = body.workspace_id as string | undefined;
+      if (workspaceId) {
+        const { data: owned } = await adminClient
+          .from("workspaces")
+          .select("id")
+          .eq("id", workspaceId)
+          .eq("user_id", uid)
+          .maybeSingle();
+        if (!owned) {
+          return new Response(JSON.stringify({ error: "Invalid workspace" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } else {
+        const { data: ws } = await adminClient
+          .from("workspaces")
+          .select("id, is_default, position")
+          .eq("user_id", uid)
+          .order("position", { ascending: true });
+        const def = (ws ?? []).find((w: any) => w.is_default) ?? (ws ?? [])[0];
+        if (!def) {
+          const { data: created } = await adminClient
+            .from("workspaces")
+            .insert({ user_id: uid, name: "My tasks", is_default: true, position: 0 })
+            .select("id")
+            .single();
+          workspaceId = created!.id;
+        } else {
+          workspaceId = def.id;
+        }
+      }
+      jobs.push({ userId: uid, workspaceId: workspaceId! });
+    }
+
+    for (const { userId, workspaceId } of jobs) {
       const { data: todos, error: todosErr } = await adminClient
         .from("todos")
         .select("text, completed_at")
         .eq("user_id", userId)
+        .eq("workspace_id", workspaceId)
         .eq("completed", true)
         .gte("completed_at", weekStart.toISOString())
         .lte("completed_at", weekEnd.toISOString());
 
       if (todosErr) {
-        console.error(`Error fetching todos for ${userId}:`, todosErr);
-        results.push({ user_id: userId, status: "error" });
+        console.error(`Error fetching todos for ${userId}/${workspaceId}:`, todosErr);
+        results.push({ user_id: userId, workspace_id: workspaceId, status: "error" });
         continue;
       }
 
       if (!todos || todos.length === 0) {
-        results.push({ user_id: userId, status: "no_tasks" });
+        results.push({ user_id: userId, workspace_id: workspaceId, status: "no_tasks" });
         continue;
       }
 
       const taskList = todos.map((t: { text: string }) => `- ${t.text}`).join("\n");
 
-      // Call Lovable AI for summarization
       const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -161,16 +203,16 @@ serve(async (req) => {
 
       if (!aiResponse.ok) {
         const errText = await aiResponse.text();
-        console.error(`AI error for ${userId}:`, aiResponse.status, errText);
+        console.error(`AI error for ${userId}/${workspaceId}:`, aiResponse.status, errText);
         if (aiResponse.status === 429) {
-          results.push({ user_id: userId, status: "rate_limited" });
+          results.push({ user_id: userId, workspace_id: workspaceId, status: "rate_limited" });
           continue;
         }
         if (aiResponse.status === 402) {
-          results.push({ user_id: userId, status: "payment_required" });
+          results.push({ user_id: userId, workspace_id: workspaceId, status: "payment_required" });
           continue;
         }
-        results.push({ user_id: userId, status: "ai_error" });
+        results.push({ user_id: userId, workspace_id: workspaceId, status: "ai_error" });
         continue;
       }
 
@@ -178,34 +220,31 @@ serve(async (req) => {
       const summary = aiData.choices?.[0]?.message?.content?.trim();
 
       if (!summary) {
-        results.push({ user_id: userId, status: "empty_summary" });
+        results.push({ user_id: userId, workspace_id: workspaceId, status: "empty_summary" });
         continue;
       }
 
-      // Upsert into weekly_reports
       const { error: upsertErr } = await adminClient.from("weekly_reports").upsert(
         {
           user_id: userId,
+          workspace_id: workspaceId,
           week_start: weekStart.toISOString().slice(0, 10),
           week_end: weekEnd.toISOString().slice(0, 10),
           summary,
           todos_count: todos.length,
         },
-        { onConflict: "user_id,week_start" }
+        { onConflict: "user_id,workspace_id,week_start" }
       );
 
       if (upsertErr) {
-        console.error(`Upsert error for ${userId}:`, upsertErr);
-        results.push({ user_id: userId, status: "upsert_error" });
+        console.error(`Upsert error for ${userId}/${workspaceId}:`, upsertErr);
+        results.push({ user_id: userId, workspace_id: workspaceId, status: "upsert_error" });
         continue;
       }
 
-      results.push({ user_id: userId, status: "success" });
+      results.push({ user_id: userId, workspace_id: workspaceId, status: "success" });
     }
 
-    // Cleanup: delete reports older than 3 months
-    // In manual mode, scope to the requesting user only.
-    // In cron mode, the all-user cleanup is intentional.
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
     const cleanupQuery = adminClient
