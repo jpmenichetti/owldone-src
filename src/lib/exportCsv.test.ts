@@ -65,7 +65,7 @@ describe("exportTodosCsv", () => {
   it("emits header row with all expected columns", () => {
     const csv = captureCsv([]);
     expect(csv.split("\n")[0]).toBe(
-      "text,category,tags,notes,urls,completed,completed_at,removed,removed_at,created_at,updated_at",
+      "text,category,tags,notes,urls,completed,completed_at,removed,removed_at,created_at,updated_at,workspace",
     );
   });
 
@@ -85,12 +85,35 @@ describe("exportTodosCsv", () => {
   it("renders null notes/completed_at/removed_at as empty cells", () => {
     const csv = captureCsv([makeTodo({ notes: null, completed_at: null, removed_at: null })]);
     const row = csv.split("\n")[1];
-    // text,category,tags,notes,urls,completed,completed_at,removed,removed_at,created_at,updated_at
     const cells = row.split(",");
     expect(cells[3]).toBe(""); // notes
     expect(cells[6]).toBe(""); // completed_at
     expect(cells[8]).toBe(""); // removed_at
   });
+
+  describe("workspace column", () => {
+    it("writes the workspace name when provided", () => {
+      const csv = captureCsv([
+        makeTodo({ workspace_name: "Work" } as any),
+        makeTodo({ workspace_name: "Personal" } as any),
+      ]);
+      const rows = csv.split("\n");
+      expect(rows[1].split(",").at(-1)).toBe("Work");
+      expect(rows[2].split(",").at(-1)).toBe("Personal");
+    });
+
+    it("emits an empty workspace cell when missing", () => {
+      const csv = captureCsv([makeTodo()]);
+      const row = csv.split("\n")[1];
+      expect(row.split(",").at(-1)).toBe("");
+    });
+
+    it("quotes workspace names that contain commas", () => {
+      const csv = captureCsv([makeTodo({ workspace_name: "A, B" } as any)]);
+      expect(csv).toContain('"A, B"');
+    });
+  });
+
 
   describe("formula-injection neutralisation", () => {
     it.each([
