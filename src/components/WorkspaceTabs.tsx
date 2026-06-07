@@ -188,14 +188,13 @@ export default function WorkspaceTabs() {
         })}
         {canCreate && (
           <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
+            variant="ghost"
+            size="icon"
+            className="shrink-0 h-8 w-8 rounded-lg border border-dashed border-border hover:bg-muted"
             onClick={() => setCreateOpen(true)}
             aria-label={t("workspace.add")}
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            {t("workspace.add")}
+            <Plus className="h-4 w-4" />
           </Button>
         )}
       </div>
