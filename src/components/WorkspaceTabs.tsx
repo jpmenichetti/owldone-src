@@ -52,6 +52,7 @@ export default function WorkspaceTabs() {
   const [renameValue, setRenameValue] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
   // Hide UI entirely for non-premium users
@@ -92,6 +93,7 @@ export default function WorkspaceTabs() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    setDeletingId(deleteId);
     setBusy(true);
     try {
       await deleteWorkspace(deleteId);
@@ -100,6 +102,7 @@ export default function WorkspaceTabs() {
     } catch (e: any) {
       toast.error(e?.message ?? t("workspace.deleteFailed"));
     } finally {
+      setDeletingId(null);
       setBusy(false);
     }
   };
@@ -273,6 +276,9 @@ export default function WorkspaceTabs() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive hover:bg-destructive/90">
+              {deletingId === deleteId ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               {t("workspace.deleteConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
