@@ -27,10 +27,12 @@ import logo from "@/assets/logo.png";
 import LanguageSelector from "@/components/LanguageSelector";
 import DevTimeTravel from "@/components/DevTimeTravel";
 import { useI18n } from "@/i18n/I18nContext";
-import { exportTodosCsv } from "@/lib/exportCsv";
+import { exportTodosCsv, type ExportableTodo } from "@/lib/exportCsv";
 import { validateCsvFile, importCsvFile } from "@/lib/importCsv";
+import { planRestore, type BackupWorkspace } from "@/lib/backupRestore";
 import { toast } from "@/hooks/use-toast";
 import type { Todo } from "@/hooks/useTodos";
+
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
