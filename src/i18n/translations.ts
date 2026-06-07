@@ -194,6 +194,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Failed to copy",
     "report.rateLimited": "Rate limited. Please try again later.",
     "report.generateFailed": "Failed to generate report",
+    "report.download": "Download all",
+    "report.downloadPdf": "Download as PDF",
+    "report.downloadDocx": "Download as Word",
+    "report.downloadMd": "Download as Markdown",
 
     // Todos hook errors
     "todos.error.removeFailed": "Failed to remove todo",
@@ -364,6 +368,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Error al copiar",
     "report.rateLimited": "Límite de solicitudes alcanzado. Inténtalo de nuevo más tarde.",
     "report.generateFailed": "Error al generar el reporte",
+    "report.download": "Descargar todos",
+    "report.downloadPdf": "Descargar como PDF",
+    "report.downloadDocx": "Descargar como Word",
+    "report.downloadMd": "Descargar como Markdown",
 
     "todos.error.removeFailed": "Error al eliminar la tarea",
     "todos.error.addFailed": "Error al agregar la tarea",
@@ -533,6 +541,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Échec de la copie",
     "report.rateLimited": "Limite de requêtes atteinte. Veuillez réessayer plus tard.",
     "report.generateFailed": "Échec de la génération du rapport",
+    "report.download": "Tout télécharger",
+    "report.downloadPdf": "Télécharger en PDF",
+    "report.downloadDocx": "Télécharger en Word",
+    "report.downloadMd": "Télécharger en Markdown",
 
     "todos.error.removeFailed": "Échec de la suppression de la tâche",
     "todos.error.addFailed": "Échec de l'ajout de la tâche",
@@ -702,6 +714,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Kopieren fehlgeschlagen",
     "report.rateLimited": "Anfragelimit erreicht. Bitte später erneut versuchen.",
     "report.generateFailed": "Bericht konnte nicht generiert werden",
+    "report.download": "Alle herunterladen",
+    "report.downloadPdf": "Als PDF herunterladen",
+    "report.downloadDocx": "Als Word herunterladen",
+    "report.downloadMd": "Als Markdown herunterladen",
 
     "todos.error.removeFailed": "Aufgabe konnte nicht entfernt werden",
     "todos.error.addFailed": "Aufgabe konnte nicht hinzugefügt werden",

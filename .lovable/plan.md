@@ -1,61 +1,47 @@
-## Allow tag deletion from the Tags filter popover
+# Download All Weekly Reports
 
-GitHub issue #19: Users need a way to remove a tag from every task (and from the system) directly from the "Tags" button in the filter control.
+Add a way to export every weekly report into a single downloadable file in three formats: **PDF**, **DOCX**, and **Markdown**.
 
-### UX
+## UX
 
-In `FilterBar`'s tags popover, each tag chip gets a small `x` button on the right side. Clicking the `x` (not the chip body):
+In `WeeklyReportSection.tsx`, next to the existing "Generate" button, add a "Download" dropdown (shadcn `DropdownMenu`) with three items:
+- Download as PDF
+- Download as DOCX
+- Download as Markdown
 
-1. Opens a confirmation `AlertDialog`: "Remove tag '{tag}' from all tasks? This will delete the tag from every active and archived task and cannot be undone."
-2. On confirm: the tag is stripped from every todo (active + archived) of the current user, removed from `selected_tags` if present, and the popover updates. Toast on success/failure (localized).
-3. Clicking the chip body keeps current behavior (toggle as filter).
+The button is disabled when there are no reports. All labels are localized via `i18n/translations.ts` (`report.download`, `report.downloadPdf`, `report.downloadDocx`, `report.downloadMd`).
 
-### Backend
+## File content
 
-**New action `delete_tag` in `supabase/functions/todos-api/index.ts`:**
-- Params: `{ tag: string }` (validated: non-empty string, ≤ `LIMITS.tagLen`).
-- Fetches all todos for `userId` (active + archived) where `tags @> ARRAY[tag]` using `.contains('tags', [tag])`.
-- For each matching row, updates `tags` to the array with the tag filtered out. Done in a single batched loop (chunks of 500) using individual updates — Postgres array remove via `array_remove` isn't reachable through PostgREST `.update()`, so we read+write the filtered array per row. Acceptable given typical tag cardinality.
-- Returns `{ success: true, affected: <count> }`.
-- Registered in the `handlers` map.
+Reports are sorted **oldest → newest**. Each report is rendered as:
 
-No DB migration needed — RLS already scopes by `user_id` and we use the service client filtered by `userId` like other handlers.
+- **Title**: `Week of {start} – {end}` (localized via existing `report.weekOf`, dates formatted with the user's locale)
+- **Body**: the report `summary` text
+- **Footer line**: `{count} task(s)` (reuses existing `todo.taskSingular` / `todo.taskPlural`)
+- Blank line / page break between reports
 
-### Frontend
+Filename: `owldone-weekly-reports-YYYY-MM-DD.{pdf|docx|md}` (mirrors `exportCsv.ts` convention).
 
-**`src/hooks/useTodos.ts`:**
-- Add a `deleteTag` mutation invoking `todos-api` with `{ action: 'delete_tag', tag }`.
-- `onSuccess`: invalidate the todos and archived queries so all chips/cards refresh. Localized error toast via existing `todos.error.*` pattern (add a new key).
+## Implementation
 
-**`src/hooks/useFilters.ts`:**
-- Add a helper `removeTagFromSelection(tag)` that, if the deleted tag was selected, persists `selected_tags` without it (reuses existing `upsertFilters`).
+All generation happens **client-side** in a new `src/lib/exportWeeklyReports.ts` with three functions: `exportReportsMd`, `exportReportsDocx`, `exportReportsPdf`. Each takes `WeeklyReport[]` plus a `t` translator and triggers a browser download (same `Blob` + anchor pattern as `exportCsv.ts`).
 
-**`src/components/FilterBar.tsx`:**
-- Add new prop `onDeleteTag: (tag: string) => void`.
-- In the tags popover, render each tag as a button with an inner `x` icon (`lucide-react` `X`). The outer container handles filter toggle; the inner `x` calls a handler that `stopPropagation`s and opens an `AlertDialog` (shadcn) with confirm/cancel.
-- Hide the `x` while a deletion for that tag is pending (use `deletingTag` state) and show a small spinner.
-- Localized labels: confirm title, body, confirm/cancel buttons, screen-reader label for the `x` button.
+**Libraries** (added via `bun add`):
+- `docx` — DOCX generation (pure JS, browser-compatible)
+- `jspdf` — PDF generation (lightweight, no native deps)
+- Markdown is generated with plain string concatenation, no dependency.
 
-**`src/pages/Index.tsx`:**
-- Wire `onDeleteTag={(tag) => deleteTag.mutate(tag, { onSuccess: () => { removeTagFromSelection(tag); toast(...); }})}`.
-- Pass `deleteTag` from `useTodos`.
+**Wiring**: `WeeklyReportSection` imports the three helpers and calls them from the dropdown items, passing `reports` (already sorted newest→oldest by the query — reverse before export) and `t`.
 
-**`src/i18n/translations.ts`:**
-- Add for all 4 locales:
-  - `filter.deleteTag` (sr-only label "Delete tag {tag}")
-  - `filter.deleteTagConfirmTitle`
-  - `filter.deleteTagConfirmBody` (with `{tag}` placeholder)
-  - `common.delete`, `common.cancel` (reuse if present, otherwise add)
-  - `filter.tagDeleted` toast, `todos.error.deleteTag`
+## Scope
 
-### Out of scope
+- Frontend only. No backend, edge function, or DB changes.
+- No change to how reports are generated or stored.
+- New translation keys added to every supported language in `src/i18n/translations.ts`.
 
-- No bulk multi-tag delete UI.
-- No "rename tag" feature.
-- No new table — tags remain derived from `todos.tags`, so removing the tag from every todo automatically removes it from the popover (the `allTags` memo in `Index.tsx` recomputes after invalidation).
+## Files
 
-### Verification
-
-- Manual: create a tag, attach to 2 active + 1 archived todo, delete via popover `x`, confirm dialog, verify chip disappears, all todos no longer show it, and a selected filter for it is cleared.
-- Tests: extend `supabase/functions/todos-api/index.test.ts` with a `delete_tag` case (active + archived, untouched-other-tag, invalid tag input → 400).
-- Run `bunx vitest run`.
+- **New**: `src/lib/exportWeeklyReports.ts`
+- **Edit**: `src/components/WeeklyReportSection.tsx` (add dropdown + handlers)
+- **Edit**: `src/i18n/translations.ts` (4 new keys × all languages)
+- **Edit**: `package.json` (add `docx`, `jspdf`)

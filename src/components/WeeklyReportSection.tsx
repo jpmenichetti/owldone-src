@@ -3,9 +3,11 @@ import { useWeeklyReports, WeeklyReport } from "@/hooks/useWeeklyReports";
 import { useI18n } from "@/i18n/I18nContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Sparkles, Copy, Check, FileText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, Sparkles, Copy, Check, FileText, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { exportReportsMd, exportReportsDocx, exportReportsPdf } from "@/lib/exportWeeklyReports";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -95,7 +97,28 @@ export default function WeeklyReportSection() {
         />
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3 space-y-3">
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          {reports.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {t("report.download")}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => exportReportsPdf(reports, t)}>
+                  {t("report.downloadPdf")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportReportsDocx(reports, t).catch(() => toast.error(t("report.generateFailed")))}>
+                  {t("report.downloadDocx")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => exportReportsMd(reports, t)}>
+                  {t("report.downloadMd")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline"
             size="sm"
