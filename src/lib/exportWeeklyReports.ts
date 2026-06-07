@@ -108,11 +108,7 @@ export function exportReportsPdf(reports: WeeklyReport[], t: Translator): void {
   writeBlock(t("report.title"), 20, "bold");
   y += lineHeight / 2;
 
-  sorted.forEach((r, idx) => {
-    if (idx > 0) {
-      doc.addPage();
-      y = margin;
-    }
+  sorted.forEach((r) => {
     writeBlock(weekTitle(r, t), 16, "bold");
     y += 4;
     writeBlock(r.summary, 12, "normal");
