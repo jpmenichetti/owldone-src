@@ -276,6 +276,9 @@ export default function WorkspaceTabs() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive hover:bg-destructive/90">
+              {deletingId === deleteId ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
               {t("workspace.deleteConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
