@@ -52,12 +52,31 @@ export default function Navbar() {
 
   const handleExport = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("todos-api", { body: { action: "list" } });
-      if (error) throw error;
-      const { data: archivedData } = await supabase.functions.invoke("todos-api", {
-        body: { action: "list_archived", searchText: "", pageSize: 10000, pageOffset: 0 },
+      const { data: workspaces, error: wsErr } = await supabase.functions.invoke("user-api", {
+        body: { action: "list_workspaces" },
       });
-      const allTodos = [...(data || []), ...(archivedData || [])] as Todo[];
+      if (wsErr) throw wsErr;
+      const wsList = (workspaces ?? []) as BackupWorkspace[];
+
+      const allTodos: ExportableTodo[] = [];
+      for (const ws of wsList) {
+        const { data, error } = await supabase.functions.invoke("todos-api", {
+          body: { action: "list", workspace_id: ws.id },
+        });
+        if (error) throw error;
+        const { data: archivedData } = await supabase.functions.invoke("todos-api", {
+          body: {
+            action: "list_archived",
+            workspace_id: ws.id,
+            searchText: "",
+            pageSize: 10000,
+            pageOffset: 0,
+          },
+        });
+        for (const todo of [...(data ?? []), ...(archivedData ?? [])] as Todo[]) {
+          allTodos.push({ ...todo, workspace_name: ws.name });
+        }
+      }
       exportTodosCsv(allTodos);
       toast({ title: t("backup.exportSuccess") });
     } catch {
@@ -88,8 +107,46 @@ export default function Navbar() {
         toast({ title: t("backup.noValidRows"), variant: "destructive" });
         return;
       }
-      await supabase.functions.invoke("todos-api", { body: { action: "delete_all" } });
-      await supabase.functions.invoke("todos-api", { body: { action: "bulk_insert", todos: validTodos } });
+
+      // Resolve workspaces: find existing by name, create missing where possible,
+      // and fall back to the default workspace for rows without one.
+      const { data: wsData, error: wsErr } = await supabase.functions.invoke("user-api", {
+        body: { action: "list_workspaces" },
+      });
+      if (wsErr) throw wsErr;
+      const existing = ((wsData ?? []) as BackupWorkspace[]).slice();
+      const defaultWs = existing.find((w) => w.is_default) ?? existing[0];
+      if (!defaultWs) throw new Error("No workspace available");
+
+      const plan = planRestore(validTodos, existing);
+      for (const name of plan.workspacesToCreate) {
+        try {
+          const { data: created, error } = await supabase.functions.invoke("user-api", {
+            body: { action: "create_workspace", name },
+          });
+          if (!error && created?.id) {
+            existing.push({ id: created.id, name: created.name, is_default: false });
+          }
+        } catch {
+          // Best-effort: fall back to default for this name.
+        }
+      }
+      const groups = plan.buildGroups(existing, defaultWs.id);
+
+      // Wipe all of the user's existing workspace data before reinserting.
+      for (const ws of existing) {
+        await supabase.functions.invoke("todos-api", {
+          body: { action: "delete_all", workspace_id: ws.id },
+        });
+      }
+      for (const [workspaceId, rows] of groups) {
+        // Strip workspace_name; the backend ignores unknown fields but keep payload small.
+        const payload = rows.map(({ workspace_name: _w, ...rest }) => rest);
+        await supabase.functions.invoke("todos-api", {
+          body: { action: "bulk_insert", workspace_id: workspaceId, todos: payload },
+        });
+      }
+
       let msg = t("backup.restoreSuccess").replace("{count}", String(validTodos.length));
       if (skippedCount > 0) {
         msg += ` ${t("backup.skippedRows").replace("{count}", String(skippedCount))}`;
@@ -105,6 +162,7 @@ export default function Navbar() {
       setSelectedFile(null);
     }
   };
+
 
   return (
     <>
