@@ -1,5 +1,5 @@
 import type { WeeklyReport } from "@/hooks/useWeeklyReports";
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, PageBreak } from "docx";
+import { Document, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
 import jsPDF from "jspdf";
 
 type Translator = (key: string) => string;
@@ -61,10 +61,7 @@ export async function exportReportsDocx(reports: WeeklyReport[], t: Translator):
     new Paragraph({ text: t("report.title"), heading: HeadingLevel.TITLE }),
   ];
 
-  sorted.forEach((r, idx) => {
-    if (idx > 0) {
-      children.push(new Paragraph({ children: [new PageBreak()] }));
-    }
+  sorted.forEach((r) => {
     children.push(
       new Paragraph({ text: weekTitle(r, t), heading: HeadingLevel.HEADING_1 }),
     );
@@ -111,11 +108,7 @@ export function exportReportsPdf(reports: WeeklyReport[], t: Translator): void {
   writeBlock(t("report.title"), 20, "bold");
   y += lineHeight / 2;
 
-  sorted.forEach((r, idx) => {
-    if (idx > 0) {
-      doc.addPage();
-      y = margin;
-    }
+  sorted.forEach((r) => {
     writeBlock(weekTitle(r, t), 16, "bold");
     y += 4;
     writeBlock(r.summary, 12, "normal");
