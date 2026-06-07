@@ -93,6 +93,7 @@ export default function WorkspaceTabs() {
 
   const handleDelete = async () => {
     if (!deleteId) return;
+    setDeletingId(deleteId);
     setBusy(true);
     try {
       await deleteWorkspace(deleteId);
@@ -101,6 +102,7 @@ export default function WorkspaceTabs() {
     } catch (e: any) {
       toast.error(e?.message ?? t("workspace.deleteFailed"));
     } finally {
+      setDeletingId(null);
       setBusy(false);
     }
   };
