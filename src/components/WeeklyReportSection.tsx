@@ -3,9 +3,11 @@ import { useWeeklyReports, WeeklyReport } from "@/hooks/useWeeklyReports";
 import { useI18n } from "@/i18n/I18nContext";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Sparkles, Copy, Check, FileText } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ChevronDown, Sparkles, Copy, Check, FileText, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { exportReportsMd, exportReportsDocx, exportReportsPdf } from "@/lib/exportWeeklyReports";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
