@@ -489,12 +489,15 @@ function FeatureFlagsSection() {
               <div className="flex flex-wrap gap-2 items-end">
                 <div>
                   <label className="text-xs text-muted-foreground">Feature name</label>
-                  <Input
-                    placeholder="recurrence"
-                    value={featureName}
-                    onChange={(e) => setFeatureName(e.target.value)}
-                    className="w-[180px]"
-                  />
+                  <Select value={featureName} onValueChange={setFeatureName}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select feature" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recurrence">recurrence</SelectItem>
+                      <SelectItem value="workspaces">workspaces</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Expires (optional)</label>
