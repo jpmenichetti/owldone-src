@@ -157,16 +157,24 @@ export default function WorkspaceTabs() {
                   </DropdownMenuItem>
                   {!ws.is_default && (
                     <DropdownMenuItem
+                      disabled={settingDefaultId === ws.id}
                       onClick={async () => {
+                        setSettingDefaultId(ws.id);
                         try {
                           await setDefaultWorkspace(ws.id);
                           toast(t("workspace.defaultSet"));
                         } catch (e: any) {
                           toast.error(e?.message ?? t("workspace.error"));
+                        } finally {
+                          setSettingDefaultId(null);
                         }
                       }}
                     >
-                      <Star className="mr-2 h-4 w-4" />
+                      {settingDefaultId === ws.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Star className="mr-2 h-4 w-4" />
+                      )}
                       {t("workspace.makeDefault")}
                     </DropdownMenuItem>
                   )}
