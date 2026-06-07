@@ -213,13 +213,13 @@ export function useTodos(searchText = "") {
     onMutate: async ({ id, ...updates }) => {
       await queryClient.cancelQueries({ queryKey: ["todos"] });
       await queryClient.cancelQueries({ queryKey: ["archived-todos"] });
-      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id]);
-      const previousArchived = queryClient.getQueryData(["archived-todos", user?.id, searchText]);
-      queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) =>
+      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId]);
+      const previousArchived = queryClient.getQueryData(["archived-todos", user?.id, activeWorkspaceId, searchText]);
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) =>
         (old ?? []).map((t) => (t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t))
       );
       queryClient.setQueryData<{ pages: Todo[][]; pageParams: unknown[] }>(
-        ["archived-todos", user?.id, searchText],
+        ["archived-todos", user?.id, activeWorkspaceId, searchText],
         (old) => {
           if (!old) return old;
           return {
@@ -233,13 +233,14 @@ export function useTodos(searchText = "") {
       return { previous, previousArchived };
     },
     onError: (_err, _vars, context) => {
-      queryClient.setQueryData(["todos", user?.id], context?.previous);
-      queryClient.setQueryData(["archived-todos", user?.id, searchText], context?.previousArchived);
+      queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
+      queryClient.setQueryData(["archived-todos", user?.id, activeWorkspaceId, searchText], context?.previousArchived);
       toast.error(t("todos.error.updateFailed"));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
       queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
+      queryClient.invalidateQueries({ queryKey: ["all-tags"] });
     },
   });
 
@@ -250,14 +251,15 @@ export function useTodos(searchText = "") {
     },
     onMutate: async ({ id, completed }) => {
       await queryClient.cancelQueries({ queryKey: ["todos"] });
-      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id]);
-      queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) =>
+      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId]);
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) =>
         (old ?? []).map((t) =>
           t.id === id ? { ...t, completed, completed_at: completed ? new Date().toISOString() : null } : t
         )
       );
       return { previous };
     },
+
     onError: (_err, _vars, context) => {
       queryClient.setQueryData(["todos", user?.id], context?.previous);
       toast.error(t("todos.error.toggleFailed"));
