@@ -26,6 +26,25 @@ function buildMockDb(
   resultsByTable: Record<string, (c: Call) => { data?: any; error?: any }>,
   callLog: Call[] = [],
 ) {
+  // Auto-stub `workspaces` so ensureDefaultWorkspace() (called by virtually
+  // every handler) doesn't crash. Tests can override by passing their own.
+  const DEFAULT_WORKSPACE_ID = "ws-default";
+  if (!resultsByTable.workspaces) {
+    resultsByTable.workspaces = (c: Call) => {
+      const terminator = c.filters.find(
+        (f) => f.method === "single" || f.method === "maybeSingle",
+      );
+      if (terminator) {
+        return { data: { id: DEFAULT_WORKSPACE_ID, is_default: true }, error: null };
+      }
+      // Awaited select listing workspaces for the user.
+      return {
+        data: [{ id: DEFAULT_WORKSPACE_ID, is_default: true, position: 0 }],
+        error: null,
+      };
+    };
+  }
+
   function chain(table: string, op: string, args: any[], options?: any) {
     const c: Call = { table, op, args, filters: [], options };
     callLog.push(c);
@@ -47,6 +66,10 @@ function buildMockDb(
         c.filters.push({ method: "select", args: a });
         return proxy;
       },
+      single() {
+        c.filters.push({ method: "single", args: [] });
+        return resolve();
+      },
       maybeSingle() {
         c.filters.push({ method: "maybeSingle", args: [] });
         return resolve();
@@ -64,6 +87,12 @@ function buildMockDb(
         select(cols: string) {
           return chain(table, "select", [cols]);
         },
+        insert(values: any) {
+          return chain(table, "insert", [values]);
+        },
+        update(values: any) {
+          return chain(table, "update", [values]);
+        },
         upsert(values: any, options?: any) {
           return chain(table, "upsert", [values], options);
         },
@@ -71,6 +100,7 @@ function buildMockDb(
     },
   };
 }
+
 
 async function readJson(res: Response) {
   return JSON.parse(await res.text());
