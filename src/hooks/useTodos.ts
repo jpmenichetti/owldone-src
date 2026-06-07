@@ -359,7 +359,7 @@ export function useTodos(searchText = "") {
 
   const deleteAllTodos = useMutation({
     mutationFn: async () => {
-      await invoke("todos-api", { action: "delete_all" });
+      await invoke("todos-api", wsBody({ action: "delete_all" }));
     },
     onSuccess: invalidateAll,
   });
@@ -370,10 +370,11 @@ export function useTodos(searchText = "") {
       urls: string[]; completed: boolean; completed_at: string | null;
       removed: boolean; removed_at: string | null; created_at: string; updated_at: string;
     }>) => {
-      await invoke("todos-api", { action: "bulk_insert", todos });
+      await invoke("todos-api", wsBody({ action: "bulk_insert", todos }));
     },
     onSuccess: invalidateAll,
   });
+
 
   // When simulating time, compute virtual state without DB changes
   const { virtualTodos, virtualArchived } = useMemo(() => {
