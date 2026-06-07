@@ -265,7 +265,7 @@ export default function WorkspaceTabs() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && !busy && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("workspace.deleteTitle")}</AlertDialogTitle>
@@ -275,7 +275,7 @@ export default function WorkspaceTabs() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={busy}>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={busy} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); handleDelete(); }} disabled={busy} className="bg-destructive hover:bg-destructive/90">
               {deletingId === deleteId ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
