@@ -52,6 +52,7 @@ export default function WorkspaceTabs() {
   const [renameValue, setRenameValue] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
   // Hide UI entirely for non-premium users
   if (!isEnabled || workspaces.length === 0) return null;
