@@ -114,24 +114,24 @@ export function useTodos(searchText = "") {
   const ARCHIVE_PAGE_SIZE = 20;
 
   const archivedCountQuery = useQuery({
-    queryKey: ["archived-todos-count", user?.id, searchText],
+    queryKey: ["archived-todos-count", user?.id, activeWorkspaceId, searchText],
     queryFn: async () => {
-      const data = await invoke("todos-api", { action: "count_archived", searchText });
+      const data = await invoke("todos-api", wsBody({ action: "count_archived", searchText }));
       return data.count as number;
     },
-    enabled: !!user,
+    enabled: !!user && !!activeWorkspaceId,
   });
 
   const archivedQuery = useInfiniteQuery({
-    queryKey: ["archived-todos", user?.id, searchText],
+    queryKey: ["archived-todos", user?.id, activeWorkspaceId, searchText],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * ARCHIVE_PAGE_SIZE;
-      const data = await invoke("todos-api", {
+      const data = await invoke("todos-api", wsBody({
         action: "list_archived",
         searchText,
         pageSize: ARCHIVE_PAGE_SIZE,
         pageOffset: from,
-      });
+      }));
       return data as Todo[];
     },
     initialPageParam: 0,
@@ -139,18 +139,18 @@ export function useTodos(searchText = "") {
       if (lastPage.length < ARCHIVE_PAGE_SIZE) return undefined;
       return allPages.length;
     },
-    enabled: !!user,
+    enabled: !!user && !!activeWorkspaceId,
   });
 
   const addTodo = useMutation({
     mutationFn: async ({ text, category, tempId }: { text: string; category: TodoCategory; tempId: string }) => {
-      const data = await invoke("todos-api", { action: "add", text, category });
+      const data = await invoke("todos-api", wsBody({ action: "add", text, category }));
       return { tempId, realId: data.id as string };
     },
     onMutate: async ({ text, category, tempId }) => {
       pendingCreateIdsRef.current.add(tempId);
       await queryClient.cancelQueries({ queryKey: ["todos"] });
-      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id]);
+      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId]);
       const tempTodo: Todo = {
         id: tempId,
         text,
@@ -165,11 +165,12 @@ export function useTodos(searchText = "") {
         removed: false,
         removed_at: null,
         user_id: user?.id ?? "",
+        workspace_id: activeWorkspaceId ?? "",
         recurrence: null,
         next_recurrence_at: null,
         recurring_source_id: null,
       };
-      queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) => [tempTodo, ...(old ?? [])]);
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) => [tempTodo, ...(old ?? [])]);
       return { previous };
     },
     onSuccess: async ({ tempId, realId }) => {
@@ -186,21 +187,23 @@ export function useTodos(searchText = "") {
         return;
       }
 
-      queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) =>
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) =>
         (old ?? []).map((t) => (t.id === tempId ? { ...t, id: realId } : t))
       );
     },
     onError: (_err, vars, context) => {
       pendingCreateIdsRef.current.delete(vars.tempId);
       pendingRemoveIdsRef.current.delete(vars.tempId);
-      queryClient.setQueryData(["todos", user?.id], context?.previous);
+      queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
       toast.error(t("todos.error.addFailed"));
     },
     onSettled: (_data, _error, vars) => {
       if (vars?.tempId) pendingCreateIdsRef.current.delete(vars.tempId);
       queryClient.invalidateQueries({ queryKey: ["todos"] });
+      queryClient.invalidateQueries({ queryKey: ["all-tags"] });
     },
   });
+
 
   const updateTodo = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Tables<"todos">> & { id: string }) => {
