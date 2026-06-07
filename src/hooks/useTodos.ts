@@ -433,14 +433,14 @@ export function useTodos(searchText = "") {
     },
     onMutate: async (ids) => {
       await queryClient.cancelQueries({ queryKey: ["todos"] });
-      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id]);
-      queryClient.setQueryData<Todo[]>(["todos", user?.id], (old) =>
+      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId]);
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) =>
         (old ?? []).filter((t) => !ids.includes(t.id))
       );
       return { previous };
     },
     onError: (_err, _vars, context) => {
-      queryClient.setQueryData(["todos", user?.id], context?.previous);
+      queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
       toast.error(t("todos.error.archiveFailed"));
     },
     onSettled: invalidateAll,
