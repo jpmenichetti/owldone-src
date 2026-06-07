@@ -108,7 +108,7 @@ export default function WorkspaceTabs() {
 
   return (
     <>
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1">
+      <div className="flex flex-wrap items-center gap-1">
         {workspaces.map((ws) => {
           const active = ws.id === activeWorkspaceId;
           return (
