@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import { importCsvFile } from "./importCsv";
 
 function makeFile(content: string, name = "backup.csv"): File {
-  return new File([content], name, { type: "text/csv" });
+  // jsdom's File doesn't implement .text(); provide a stub that satisfies the call.
+  return { name, text: async () => content } as unknown as File;
 }
+
 
 const HEADER_NO_WS =
   "text,category,tags,notes,urls,completed,completed_at,removed,removed_at,created_at,updated_at";
