@@ -60,6 +60,41 @@ function logLatency(
   }).then();
 }
 
+// Resolve workspace_id: validates that it belongs to user, or falls back to default.
+async function resolveWorkspaceId(
+  db: DbClient,
+  userId: string,
+  workspaceId?: string,
+): Promise<string> {
+  if (workspaceId) {
+    const { data } = await db
+      .from("workspaces")
+      .select("id")
+      .eq("id", workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!data) throw { status: 403, message: "Invalid workspace" };
+    return workspaceId;
+  }
+  // Default fallback
+  const { data: existing } = await db
+    .from("workspaces")
+    .select("id, is_default")
+    .eq("user_id", userId)
+    .order("position", { ascending: true });
+  if (existing && existing.length > 0) {
+    return (existing.find((w: any) => w.is_default) ?? existing[0]).id;
+  }
+  // Create default workspace lazily
+  const { data: created, error } = await db
+    .from("workspaces")
+    .insert({ user_id: userId, name: "My tasks", is_default: true, position: 0 })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return created.id;
+}
+
 // ============================================================
 // Validation
 // ============================================================
@@ -129,13 +164,15 @@ type Ctx = { db: DbClient; userId: string; params: any };
 type Handler = (ctx: Ctx) => Promise<Response>;
 
 // ============================================================
-// Operation handlers (one function per action)
+// Operation handlers
 // ============================================================
-export async function listTodos({ db, userId }: Ctx): Promise<Response> {
+export async function listTodos({ db, userId, params }: Ctx): Promise<Response> {
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const { data: todos, error } = await db
     .from("todos")
     .select("*")
     .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("removed", false)
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -167,6 +204,7 @@ async function attachImages(db: DbClient, todos: any[]): Promise<any[]> {
 }
 
 export async function listArchived({ db, userId, params }: Ctx): Promise<Response> {
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const { searchText, pageSize, pageOffset } = params;
   if (searchText) {
     const term = String(searchText).trim().toLowerCase();
@@ -174,6 +212,7 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
       .from("todos")
       .select("*")
       .eq("user_id", userId)
+      .eq("workspace_id", workspaceId)
       .eq("removed", true)
       .order("removed_at", { ascending: false });
     if (error) throw error;
@@ -197,6 +236,7 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
     .from("todos")
     .select("*")
     .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("removed", true)
     .order("removed_at", { ascending: false })
     .range(from, to);
@@ -205,6 +245,7 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
 }
 
 export async function countArchived({ db, userId, params }: Ctx): Promise<Response> {
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const { searchText } = params;
   if (searchText) {
     const term = String(searchText).trim().toLowerCase();
@@ -212,6 +253,7 @@ export async function countArchived({ db, userId, params }: Ctx): Promise<Respon
       .from("todos")
       .select("text, notes, urls")
       .eq("user_id", userId)
+      .eq("workspace_id", workspaceId)
       .eq("removed", true);
     if (error) throw error;
 
@@ -229,6 +271,7 @@ export async function countArchived({ db, userId, params }: Ctx): Promise<Respon
     .from("todos")
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .eq("removed", true);
   if (error) throw error;
   return json({ count: count ?? 0 });
@@ -237,9 +280,10 @@ export async function countArchived({ db, userId, params }: Ctx): Promise<Respon
 export async function addTodo({ db, userId, params }: Ctx): Promise<Response> {
   const { text, category } = params;
   validateTodoFields({ text, category }, { requireText: true, requireCategory: true });
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const { data: inserted, error } = await db
     .from("todos")
-    .insert({ text, category, user_id: userId })
+    .insert({ text, category, user_id: userId, workspace_id: workspaceId })
     .select("id")
     .single();
   if (error) throw error;
@@ -266,7 +310,6 @@ export async function updateTodo({ db, userId, params }: Ctx): Promise<Response>
     throw { status: 400, message: "No valid fields to update" };
   }
   validateTodoFields(updates);
-
 
   const { error } = await db
     .from("todos")
@@ -333,8 +376,14 @@ export async function deletePermanent({ db, userId, params }: Ctx): Promise<Resp
   return json({ success: true });
 }
 
-export async function deleteAll({ db, userId }: Ctx): Promise<Response> {
-  const { error } = await db.from("todos").delete().eq("user_id", userId);
+export async function deleteAll({ db, userId, params }: Ctx): Promise<Response> {
+  // Scope to active workspace
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
+  const { error } = await db
+    .from("todos")
+    .delete()
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId);
   if (error) throw error;
   return json({ success: true });
 }
@@ -348,10 +397,9 @@ export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response>
   for (const t of todos) {
     validateTodoFields(t, { requireText: true, requireCategory: true });
   }
-  // Whitelist user-writable fields only — prevents injection of id, created_at,
-  // updated_at, next_recurrence_at, recurring_source_id, etc.
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const rows = todos.map((t: any) => {
-    const row: Record<string, unknown> = { user_id: userId };
+    const row: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
     for (const k of BULK_INSERT_ALLOWED_FIELDS) {
       if (t[k] !== undefined) row[k] = t[k];
     }
@@ -412,6 +460,7 @@ export async function autoTransitions({ db, userId, params }: Ctx): Promise<Resp
 }
 
 export async function deleteTag({ db, userId, params }: Ctx): Promise<Response> {
+  // Tags are shared across workspaces — delete from ALL todos for this user.
   const { tag } = params;
   if (typeof tag !== "string" || tag.length === 0 || tag.length > LIMITS.tagLen) {
     bad("Invalid tag");
