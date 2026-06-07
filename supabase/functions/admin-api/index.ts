@@ -124,9 +124,19 @@ export const purgeLatencyLogs: Handler = async ({ db }) => {
   return json({ success: true });
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function assertUuid(value: unknown, field = "user_id"): string {
+  if (typeof value !== "string" || !UUID_RE.test(value.trim())) {
+    throw { status: 400, message: `Invalid ${field}: must be a valid UUID` };
+  }
+  return value.trim();
+}
+
 export const grantFeature: Handler = async ({ db, params }) => {
-  const { user_id: targetUserId, feature, expires_at } = params;
-  const row: any = { user_id: targetUserId, feature, enabled: true, expires_at: expires_at || null };
+  const targetUserId = assertUuid(params.user_id);
+  const feature = String(params.feature ?? "").trim();
+  if (!feature) throw { status: 400, message: "Feature name required" };
+  const row: any = { user_id: targetUserId, feature, enabled: true, expires_at: params.expires_at || null };
   const { error } = await db
     .from("user_features")
     .upsert(row, { onConflict: "user_id,feature" });
@@ -135,7 +145,9 @@ export const grantFeature: Handler = async ({ db, params }) => {
 };
 
 export const revokeFeature: Handler = async ({ db, params }) => {
-  const { user_id: targetUserId, feature } = params;
+  const targetUserId = assertUuid(params.user_id);
+  const feature = String(params.feature ?? "").trim();
+  if (!feature) throw { status: 400, message: "Feature name required" };
   const { error } = await db
     .from("user_features")
     .delete()
@@ -146,7 +158,7 @@ export const revokeFeature: Handler = async ({ db, params }) => {
 };
 
 export const listUserFeatures: Handler = async ({ db, params }) => {
-  const { user_id: targetUserId } = params;
+  const targetUserId = assertUuid(params.user_id);
   const { data, error } = await db
     .from("user_features")
     .select("*")
