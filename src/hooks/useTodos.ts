@@ -29,13 +29,18 @@ async function invoke(fn: string, body: Record<string, unknown>) {
 export function useTodos(searchText = "") {
   const { user } = useAuth();
   const { getNow, simulatedDate } = useSimulatedTime();
+  const { activeWorkspaceId } = useWorkspaces();
   const queryClient = useQueryClient();
   const { t } = useI18n();
+
+  const wsBody = (extra: Record<string, unknown> = {}) =>
+    activeWorkspaceId ? { workspace_id: activeWorkspaceId, ...extra } : extra;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["todos"] });
     queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
     queryClient.invalidateQueries({ queryKey: ["archived-todos-count"] });
+    queryClient.invalidateQueries({ queryKey: ["all-tags"] });
   };
 
   // Track temp ID → real ID mappings for operations on freshly-created todos
@@ -53,13 +58,14 @@ export function useTodos(searchText = "") {
   });
 
   const todosQuery = useQuery({
-    queryKey: ["todos", user?.id],
+    queryKey: ["todos", user?.id, activeWorkspaceId],
     queryFn: async () => {
-      const data = await invoke("todos-api", { action: "list" });
+      const data = await invoke("todos-api", wsBody({ action: "list" }));
       return data as Todo[];
     },
-    enabled: !!user,
+    enabled: !!user && !!activeWorkspaceId,
   });
+
 
   // Real auto-archive/transitions: only when NOT simulating
   useEffect(() => {
