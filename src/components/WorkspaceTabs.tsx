@@ -28,7 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreVertical, Pencil, Trash2, Star } from "lucide-react";
+import { Plus, MoreVertical, Pencil, Trash2, Star, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -52,6 +52,7 @@ export default function WorkspaceTabs() {
   const [renameValue, setRenameValue] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
 
   // Hide UI entirely for non-premium users
   if (!isEnabled || workspaces.length === 0) return null;
@@ -156,16 +157,24 @@ export default function WorkspaceTabs() {
                   </DropdownMenuItem>
                   {!ws.is_default && (
                     <DropdownMenuItem
+                      disabled={settingDefaultId === ws.id}
                       onClick={async () => {
+                        setSettingDefaultId(ws.id);
                         try {
                           await setDefaultWorkspace(ws.id);
                           toast(t("workspace.defaultSet"));
                         } catch (e: any) {
                           toast.error(e?.message ?? t("workspace.error"));
+                        } finally {
+                          setSettingDefaultId(null);
                         }
                       }}
                     >
-                      <Star className="mr-2 h-4 w-4" />
+                      {settingDefaultId === ws.id ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Star className="mr-2 h-4 w-4" />
+                      )}
                       {t("workspace.makeDefault")}
                     </DropdownMenuItem>
                   )}
