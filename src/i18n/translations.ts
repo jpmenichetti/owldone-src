@@ -368,6 +368,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Error al copiar",
     "report.rateLimited": "Límite de solicitudes alcanzado. Inténtalo de nuevo más tarde.",
     "report.generateFailed": "Error al generar el reporte",
+    "report.download": "Descargar todos",
+    "report.downloadPdf": "Descargar como PDF",
+    "report.downloadDocx": "Descargar como Word",
+    "report.downloadMd": "Descargar como Markdown",
 
     "todos.error.removeFailed": "Error al eliminar la tarea",
     "todos.error.addFailed": "Error al agregar la tarea",
