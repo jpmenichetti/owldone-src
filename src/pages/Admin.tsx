@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, RefreshCw, Users, ListTodo, CalendarDays, CalendarRange, CalendarClock, LayoutList, CalendarIcon, Activity, Shield, Trash2, Plus } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from "recharts";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -488,12 +489,15 @@ function FeatureFlagsSection() {
               <div className="flex flex-wrap gap-2 items-end">
                 <div>
                   <label className="text-xs text-muted-foreground">Feature name</label>
-                  <Input
-                    placeholder="recurrence"
-                    value={featureName}
-                    onChange={(e) => setFeatureName(e.target.value)}
-                    className="w-[180px]"
-                  />
+                  <Select value={featureName} onValueChange={setFeatureName}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Select feature" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recurrence">recurrence</SelectItem>
+                      <SelectItem value="workspaces">workspaces</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Expires (optional)</label>
