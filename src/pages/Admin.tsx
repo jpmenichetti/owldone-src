@@ -372,6 +372,17 @@ function FeatureFlagsSection() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
+  const extractErrorMessage = async (e: any): Promise<string> => {
+    try {
+      const res = e?.context?.response ?? e?.response;
+      if (res && typeof res.json === "function") {
+        const body = await res.clone().json();
+        if (body?.error) return typeof body.error === "string" ? body.error : JSON.stringify(body.error);
+      }
+    } catch {}
+    return e?.message || "Request failed";
+  };
+
   const fetchUserFeatures = async () => {
     if (!targetUserId.trim()) return;
     setLoading(true);
@@ -382,7 +393,8 @@ function FeatureFlagsSection() {
       if (error) throw error;
       setUserFeatures(Array.isArray(data) ? data : []);
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: await extractErrorMessage(e), variant: "destructive" });
+      setUserFeatures([]);
     } finally {
       setLoading(false);
     }
@@ -399,7 +411,7 @@ function FeatureFlagsSection() {
       setExpiresAt(undefined);
       fetchUserFeatures();
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: await extractErrorMessage(e), variant: "destructive" });
     }
   };
 
@@ -412,7 +424,7 @@ function FeatureFlagsSection() {
       toast({ title: "Feature revoked" });
       fetchUserFeatures();
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      toast({ title: "Error", description: await extractErrorMessage(e), variant: "destructive" });
     }
   };
 
