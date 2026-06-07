@@ -103,6 +103,22 @@ function buildMockDb(
   };
 }
 
+// Deterministic-ish UUID generator for tests so handlers that validate
+// uuid-shaped inputs (e.g. user_id) don't reject hardcoded placeholders.
+function mockUuid(seed?: string): string {
+  const u = (globalThis.crypto?.randomUUID?.() ??
+    "00000000-0000-4000-8000-000000000000");
+  if (!seed) return u;
+  // Stable per-seed: hash seed into last segment for readability in failures.
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  const tail = h.toString(16).padStart(12, "0").slice(-12);
+  return `${u.slice(0, 24)}${tail}`;
+}
+
+const ADMIN_USER_ID = mockUuid("admin");
+const TARGET_USER_ID = mockUuid("u1");
+
 async function readJson(res: Response) {
   return JSON.parse(await res.text());
 }
