@@ -44,6 +44,29 @@ function buildMockDb(
   >,
   callLog: Call[],
 ) {
+  // Auto-stub the `workspaces` table so resolveWorkspaceId() (called by
+  // virtually every handler) doesn't crash when an individual test doesn't
+  // care about workspace plumbing. Tests can override by passing their own
+  // `workspaces` handler.
+  const DEFAULT_WORKSPACE_ID = "ws-default";
+  if (!resultsByTable.workspaces) {
+    resultsByTable.workspaces = (call: Call) => {
+      const terminator = call.filters.find(
+        (f) => f.method === "single" || f.method === "maybeSingle",
+      );
+      if (terminator) {
+        // `.maybeSingle()` after select-by-id (workspace existence check) or
+        // `.single()` after insert (lazy default-workspace creation).
+        return { data: { id: DEFAULT_WORKSPACE_ID, is_default: true }, error: null };
+      }
+      // Awaited select listing all workspaces for the user.
+      return {
+        data: [{ id: DEFAULT_WORKSPACE_ID, is_default: true, position: 0 }],
+        error: null,
+      };
+    };
+  }
+
   function makeChain(table: string, op: string, args: any[], options?: any) {
     const call: Call = { table, op, args, filters: [], options };
     callLog.push(call);
@@ -79,6 +102,10 @@ function buildMockDb(
         call.filters.push({ method: "single", args: [] });
         return resolver();
       },
+      maybeSingle() {
+        call.filters.push({ method: "maybeSingle", args: [] });
+        return resolver();
+      },
       then(onFulfilled: any, onRejected: any) {
         return resolver().then(onFulfilled, onRejected);
       },
@@ -105,6 +132,7 @@ function buildMockDb(
     },
   };
 }
+
 
 async function readJson(res: Response) {
   return JSON.parse(await res.text());
@@ -170,7 +198,7 @@ Deno.test("listArchived paginates without search", async () => {
   });
   const body = await readJson(res);
 
-  assertEquals(body, [{ id: "a1" }]);
+  assertEquals(body, [{ id: "a1", images: [] }]);
   const todoCall = calls.find((c) => c.table === "todos")!;
   const rangeFilter = todoCall.filters.find((f) => f.method === "range");
   assertEquals(rangeFilter?.args, [0, 19]);
@@ -259,7 +287,13 @@ Deno.test("addTodo inserts with user_id and returns id", async () => {
 
   assertEquals(body, { success: true, id: "new-id" });
   const insertCall = calls.find((c) => c.op === "insert")!;
-  assertEquals(insertCall.args[0], { text: "hi", category: "today", user_id: USER_ID });
+  assertEquals(insertCall.args[0], {
+    text: "hi",
+    category: "today",
+    user_id: USER_ID,
+    workspace_id: "ws-default",
+  });
+
 });
 
 Deno.test("updateTodo strips action and id from payload", async () => {

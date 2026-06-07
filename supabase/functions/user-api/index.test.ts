@@ -26,6 +26,25 @@ function buildMockDb(
   resultsByTable: Record<string, (c: Call) => { data?: any; error?: any }>,
   callLog: Call[] = [],
 ) {
+  // Auto-stub `workspaces` so ensureDefaultWorkspace() (called by virtually
+  // every handler) doesn't crash. Tests can override by passing their own.
+  const DEFAULT_WORKSPACE_ID = "ws-default";
+  if (!resultsByTable.workspaces) {
+    resultsByTable.workspaces = (c: Call) => {
+      const terminator = c.filters.find(
+        (f) => f.method === "single" || f.method === "maybeSingle",
+      );
+      if (terminator) {
+        return { data: { id: DEFAULT_WORKSPACE_ID, is_default: true }, error: null };
+      }
+      // Awaited select listing workspaces for the user.
+      return {
+        data: [{ id: DEFAULT_WORKSPACE_ID, is_default: true, position: 0 }],
+        error: null,
+      };
+    };
+  }
+
   function chain(table: string, op: string, args: any[], options?: any) {
     const c: Call = { table, op, args, filters: [], options };
     callLog.push(c);
@@ -47,6 +66,10 @@ function buildMockDb(
         c.filters.push({ method: "select", args: a });
         return proxy;
       },
+      single() {
+        c.filters.push({ method: "single", args: [] });
+        return resolve();
+      },
       maybeSingle() {
         c.filters.push({ method: "maybeSingle", args: [] });
         return resolve();
@@ -64,6 +87,12 @@ function buildMockDb(
         select(cols: string) {
           return chain(table, "select", [cols]);
         },
+        insert(values: any) {
+          return chain(table, "insert", [values]);
+        },
+        update(values: any) {
+          return chain(table, "update", [values]);
+        },
         upsert(values: any, options?: any) {
           return chain(table, "upsert", [values], options);
         },
@@ -71,6 +100,7 @@ function buildMockDb(
     },
   };
 }
+
 
 async function readJson(res: Response) {
   return JSON.parse(await res.text());
@@ -93,7 +123,12 @@ Deno.test("getFilters returns row scoped to userId", async () => {
 Deno.test("getFilters defaults when no row exists", async () => {
   const db = buildMockDb({ user_filters: () => ({ data: null, error: null }) });
   const res = await getFilters({ db: db as any, userId: USER_ID, params: {} });
-  assertEquals(await readJson(res), { show_overdue: false, selected_tags: [] });
+  assertEquals(await readJson(res), {
+    show_overdue: false,
+    selected_tags: [],
+    workspace_id: "ws-default",
+  });
+
 });
 
 Deno.test("upsertFilters forces user_id from auth context (ignores body user_id)", async () => {
@@ -106,7 +141,10 @@ Deno.test("upsertFilters forces user_id from auth context (ignores body user_id)
   });
   const c = calls.find((c) => c.table === "user_filters" && c.op === "upsert")!;
   assertEquals(c.args[0].user_id, USER_ID);
-  assertEquals(c.options?.onConflict, "user_id");
+  // workspace_id is injected from the auth-scoped default; body value cannot override it.
+  assertEquals(c.args[0].workspace_id, "ws-default");
+  assertEquals(c.options?.onConflict, "user_id,workspace_id");
+
 });
 
 // ---------- onboarding ----------
