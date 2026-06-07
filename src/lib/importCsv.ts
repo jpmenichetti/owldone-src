@@ -3,6 +3,8 @@ const EXPECTED_HEADERS = [
   "completed", "completed_at", "removed", "removed_at",
   "created_at", "updated_at",
 ];
+const MAX_WORKSPACE_NAME = 100;
+
 
 const VALID_CATEGORIES = ["today", "this_week", "next_week", "others"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
