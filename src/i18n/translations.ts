@@ -194,6 +194,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Failed to copy",
     "report.rateLimited": "Rate limited. Please try again later.",
     "report.generateFailed": "Failed to generate report",
+    "report.download": "Download all",
+    "report.downloadPdf": "Download as PDF",
+    "report.downloadDocx": "Download as Word",
+    "report.downloadMd": "Download as Markdown",
 
     // Todos hook errors
     "todos.error.removeFailed": "Failed to remove todo",
