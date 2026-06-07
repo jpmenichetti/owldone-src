@@ -129,7 +129,7 @@ Deno.test("getSummary returns row with id=1", async () => {
   const db = buildMockDb({
     admin_stats_summary: () => ({ data: { id: 1, total_users: 5 }, error: null }),
   });
-  const res = await getSummary({ db: db as any, userId: "admin", params: {} });
+  const res = await getSummary({ db: db as any, userId: ADMIN_USER_ID, params: {} });
   assertEquals(res.status, 200);
   assertEquals((await readJson(res)).total_users, 5);
 });
@@ -140,7 +140,7 @@ Deno.test("getSummary surfaces DB error", async () => {
   });
   let threw = false;
   try {
-    await getSummary({ db: db as any, userId: "admin", params: {} });
+    await getSummary({ db: db as any, userId: ADMIN_USER_ID, params: {} });
   } catch {
     threw = true;
   }
@@ -150,7 +150,7 @@ Deno.test("getSummary surfaces DB error", async () => {
 Deno.test("getDaily orders by stat_date asc", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({ admin_stats_daily: () => ({ data: [{ d: 1 }], error: null }) }, {}, calls);
-  await getDaily({ db: db as any, userId: "admin", params: {} });
+  await getDaily({ db: db as any, userId: ADMIN_USER_ID, params: {} });
   const sel = calls.find((c) => c.table === "admin_stats_daily")!;
   const order = sel.filters.find((f) => f.method === "order");
   assertEquals(order?.args[0], "stat_date");
@@ -160,7 +160,7 @@ Deno.test("getDaily orders by stat_date asc", async () => {
 Deno.test("refresh calls compute_admin_stats RPC", async () => {
   const calls: Call[] = [];
   const db = buildMockDb({}, { compute_admin_stats: () => ({ error: null }) }, calls);
-  const res = await refresh({ db: db as any, userId: "admin", params: {} });
+  const res = await refresh({ db: db as any, userId: ADMIN_USER_ID, params: {} });
   assertEquals(res.status, 200);
   assert(calls.some((c) => c.rpc === "compute_admin_stats"));
 });
@@ -172,11 +172,11 @@ Deno.test("grantFeature upserts with onConflict user_id,feature", async () => {
   const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
   await grantFeature({
     db: db as any,
-    userId: "admin",
-    params: { user_id: "u1", feature: "beta", expires_at: "2099-01-01" },
+    userId: ADMIN_USER_ID,
+    params: { user_id: TARGET_USER_ID, feature: "beta", expires_at: "2099-01-01" },
   });
   const c = calls.find((c) => c.table === "user_features" && c.op === "upsert")!;
-  assertEquals(c.args[0], { user_id: "u1", feature: "beta", enabled: true, expires_at: "2099-01-01" });
+  assertEquals(c.args[0], { user_id: TARGET_USER_ID, feature: "beta", enabled: true, expires_at: "2099-01-01" });
   assertEquals(c.options?.onConflict, "user_id,feature");
 });
 
@@ -185,8 +185,8 @@ Deno.test("grantFeature normalises empty expires_at to null", async () => {
   const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
   await grantFeature({
     db: db as any,
-    userId: "admin",
-    params: { user_id: "u1", feature: "beta", expires_at: "" },
+    userId: ADMIN_USER_ID,
+    params: { user_id: TARGET_USER_ID, feature: "beta", expires_at: "" },
   });
   const c = calls.find((c) => c.table === "user_features")!;
   assertEquals(c.args[0].expires_at, null);
@@ -197,13 +197,13 @@ Deno.test("revokeFeature deletes by user_id+feature", async () => {
   const db = buildMockDb({ user_features: () => ({ error: null }) }, {}, calls);
   await revokeFeature({
     db: db as any,
-    userId: "admin",
-    params: { user_id: "u1", feature: "beta" },
+    userId: ADMIN_USER_ID,
+    params: { user_id: TARGET_USER_ID, feature: "beta" },
   });
   const c = calls.find((c) => c.table === "user_features" && c.op === "delete")!;
   const eqs = c.filters.filter((f) => f.method === "eq");
   assertEquals(eqs.length, 2);
-  assert(eqs.some((f) => f.args[0] === "user_id" && f.args[1] === "u1"));
+  assert(eqs.some((f) => f.args[0] === "user_id" && f.args[1] === TARGET_USER_ID));
   assert(eqs.some((f) => f.args[0] === "feature" && f.args[1] === "beta"));
 });
 
@@ -213,8 +213,8 @@ Deno.test("listUserFeatures filters by user_id and returns rows", async () => {
   });
   const res = await listUserFeatures({
     db: db as any,
-    userId: "admin",
-    params: { user_id: "u1" },
+    userId: ADMIN_USER_ID,
+    params: { user_id: TARGET_USER_ID },
   });
   const body = await readJson(res);
   assertEquals(body, [{ feature: "beta" }]);
@@ -224,8 +224,8 @@ Deno.test("listUserFeatures returns [] when DB returns null", async () => {
   const db = buildMockDb({ user_features: () => ({ data: null, error: null }) });
   const res = await listUserFeatures({
     db: db as any,
-    userId: "admin",
-    params: { user_id: "u1" },
+    userId: ADMIN_USER_ID,
+    params: { user_id: TARGET_USER_ID },
   });
   assertEquals(await readJson(res), []);
 });
@@ -239,7 +239,7 @@ Deno.test("getLandingStats calls RPC with date range", async () => {
   }, calls);
   const res = await getLandingStats({
     db: db as any,
-    userId: "admin",
+    userId: ADMIN_USER_ID,
     params: { date_from: "2026-01-01", date_to: "2026-02-01" },
   });
   assertEquals(res.status, 200);
@@ -256,7 +256,7 @@ Deno.test("listLandingVisits paginates and filters by source", async () => {
   );
   const res = await listLandingVisits({
     db: db as any,
-    userId: "admin",
+    userId: ADMIN_USER_ID,
     params: {
       date_from: "2026-01-01",
       date_to: "2026-02-01",
@@ -283,7 +283,7 @@ Deno.test("listLandingVisits skips source filter when 'all'", async () => {
   );
   await listLandingVisits({
     db: db as any,
-    userId: "admin",
+    userId: ADMIN_USER_ID,
     params: { date_from: "a", date_to: "b", source: "all" },
   });
   const c = calls.find((c) => c.table === "landing_visits")!;
