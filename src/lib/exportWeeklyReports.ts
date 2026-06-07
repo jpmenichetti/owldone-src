@@ -61,10 +61,7 @@ export async function exportReportsDocx(reports: WeeklyReport[], t: Translator):
     new Paragraph({ text: t("report.title"), heading: HeadingLevel.TITLE }),
   ];
 
-  sorted.forEach((r, idx) => {
-    if (idx > 0) {
-      children.push(new Paragraph({ children: [new PageBreak()] }));
-    }
+  sorted.forEach((r) => {
     children.push(
       new Paragraph({ text: weekTitle(r, t), heading: HeadingLevel.HEADING_1 }),
     );
