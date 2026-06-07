@@ -541,6 +541,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Échec de la copie",
     "report.rateLimited": "Limite de requêtes atteinte. Veuillez réessayer plus tard.",
     "report.generateFailed": "Échec de la génération du rapport",
+    "report.download": "Tout télécharger",
+    "report.downloadPdf": "Télécharger en PDF",
+    "report.downloadDocx": "Télécharger en Word",
+    "report.downloadMd": "Télécharger en Markdown",
 
     "todos.error.removeFailed": "Échec de la suppression de la tâche",
     "todos.error.addFailed": "Échec de l'ajout de la tâche",
