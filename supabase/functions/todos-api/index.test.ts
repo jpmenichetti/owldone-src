@@ -198,7 +198,7 @@ Deno.test("listArchived paginates without search", async () => {
   });
   const body = await readJson(res);
 
-  assertEquals(body, [{ id: "a1" }]);
+  assertEquals(body, [{ id: "a1", images: [] }]);
   const todoCall = calls.find((c) => c.table === "todos")!;
   const rangeFilter = todoCall.filters.find((f) => f.method === "range");
   assertEquals(rangeFilter?.args, [0, 19]);
