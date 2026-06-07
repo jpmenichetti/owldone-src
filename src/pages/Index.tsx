@@ -17,6 +17,10 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, T
 import TodoCard from "@/components/TodoCard";
 import OnboardingDialog from "@/components/OnboardingDialog";
 import WeeklyReportSection from "@/components/WeeklyReportSection";
+import WorkspaceTabs from "@/components/WorkspaceTabs";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useTrackGoogleLanding } from "@/hooks/useTrackGoogleLanding";
