@@ -204,12 +204,19 @@ serve(async (req) => {
     }
 
     // Cleanup: delete reports older than 3 months
+    // In manual mode, scope to the requesting user only.
+    // In cron mode, the all-user cleanup is intentional.
     const threeMonthsAgo = new Date();
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    await adminClient
+    const cleanupQuery = adminClient
       .from("weekly_reports")
       .delete()
       .lt("week_start", threeMonthsAgo.toISOString().slice(0, 10));
+    if (body.mode !== "cron" && userIds.length === 1) {
+      await cleanupQuery.eq("user_id", userIds[0]);
+    } else {
+      await cleanupQuery;
+    }
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
