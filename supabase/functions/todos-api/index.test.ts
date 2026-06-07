@@ -287,7 +287,13 @@ Deno.test("addTodo inserts with user_id and returns id", async () => {
 
   assertEquals(body, { success: true, id: "new-id" });
   const insertCall = calls.find((c) => c.op === "insert")!;
-  assertEquals(insertCall.args[0], { text: "hi", category: "today", user_id: USER_ID });
+  assertEquals(insertCall.args[0], {
+    text: "hi",
+    category: "today",
+    user_id: USER_ID,
+    workspace_id: "ws-default",
+  });
+
 });
 
 Deno.test("updateTodo strips action and id from payload", async () => {
