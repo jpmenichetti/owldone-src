@@ -17,6 +17,10 @@ import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, T
 import TodoCard from "@/components/TodoCard";
 import OnboardingDialog from "@/components/OnboardingDialog";
 import WeeklyReportSection from "@/components/WeeklyReportSection";
+import WorkspaceTabs from "@/components/WorkspaceTabs";
+import { useWorkspaces } from "@/hooks/useWorkspaces";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useFeatureAccess } from "@/hooks/useFeatureAccess";
 import { useTrackGoogleLanding } from "@/hooks/useTrackGoogleLanding";
@@ -32,15 +36,30 @@ const Index = () => {
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
+  const { activeWorkspaceId } = useWorkspaces();
   const [searchParams, setSearchParams] = useSearchParams();
   const todoIdParam = searchParams.get("todo");
   const dialogReadOnly = searchParams.get("ro") === "1";
   const [activeDragTodo, setActiveDragTodo] = useState<Todo | null>(null);
 
-  const allTags = useMemo(
-    () => Array.from(new Set([...todos, ...archived].flatMap((t) => t.tags || []))),
-    [todos, archived]
-  );
+  // Shared tags across all workspaces for this user
+  const allTagsQuery = useQuery({
+    queryKey: ["all-tags", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("user-api", {
+        body: { action: "list_all_tags" },
+      });
+      if (error) throw error;
+      return (data?.tags ?? []) as string[];
+    },
+    enabled: !!user,
+  });
+  const allTags = useMemo(() => {
+    const fromQuery = allTagsQuery.data ?? [];
+    const fromLocal = Array.from(new Set([...todos, ...archived].flatMap((t) => t.tags || [])));
+    return Array.from(new Set([...fromQuery, ...fromLocal])).sort();
+  }, [allTagsQuery.data, todos, archived]);
+
 
   const filteredTodos = useMemo(() => {
     let result = todos;
@@ -169,6 +188,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container max-w-4xl py-6 space-y-6">
+        <WorkspaceTabs />
         {(() => {
           const completedIds = filteredTodos.filter((t) => t.completed).map((t) => t.id);
           return (

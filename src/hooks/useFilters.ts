@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useWorkspaces } from "./useWorkspaces";
 
 interface UserFilters {
   show_overdue: boolean;
@@ -17,9 +18,9 @@ async function invoke(body: Record<string, unknown>) {
 
 export function useFilters() {
   const { user } = useAuth();
+  const { activeWorkspaceId } = useWorkspaces();
   const queryClient = useQueryClient();
 
-  // Ephemeral search state with debounce
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
 
@@ -28,36 +29,46 @@ export function useFilters() {
     return () => clearTimeout(timer);
   }, [searchText]);
 
+  // Reset search when switching workspaces
+  useEffect(() => {
+    setSearchText("");
+    setDebouncedSearchText("");
+  }, [activeWorkspaceId]);
+
   const filtersQuery = useQuery({
-    queryKey: ["user-filters", user?.id],
+    queryKey: ["user-filters", user?.id, activeWorkspaceId],
     queryFn: async (): Promise<UserFilters> => {
-      const data = await invoke({ action: "get_filters" });
+      const body: Record<string, unknown> = { action: "get_filters" };
+      if (activeWorkspaceId) body.workspace_id = activeWorkspaceId;
+      const data = await invoke(body);
       return data ?? { show_overdue: false, selected_tags: [] };
     },
-    enabled: !!user,
+    enabled: !!user && !!activeWorkspaceId,
   });
 
   const upsertFilters = useMutation({
     mutationFn: async (filters: UserFilters & { _source?: "overdue" | "tag" }) => {
       const { _source, ...rest } = filters;
-      await invoke({ action: "upsert_filters", ...rest });
+      const body: Record<string, unknown> = { action: "upsert_filters", ...rest };
+      if (activeWorkspaceId) body.workspace_id = activeWorkspaceId;
+      await invoke(body);
     },
     onMutate: async (vars) => {
       setSavingSource(vars._source ?? null);
-      await queryClient.cancelQueries({ queryKey: ["user-filters", user?.id] });
-      const previous = queryClient.getQueryData<UserFilters>(["user-filters", user?.id]);
+      await queryClient.cancelQueries({ queryKey: ["user-filters", user?.id, activeWorkspaceId] });
+      const previous = queryClient.getQueryData<UserFilters>(["user-filters", user?.id, activeWorkspaceId]);
       const { _source, ...optimistic } = vars;
-      queryClient.setQueryData<UserFilters>(["user-filters", user?.id], optimistic);
+      queryClient.setQueryData<UserFilters>(["user-filters", user?.id, activeWorkspaceId], optimistic);
       return { previous };
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(["user-filters", user?.id], context.previous);
+        queryClient.setQueryData(["user-filters", user?.id, activeWorkspaceId], context.previous);
       }
     },
     onSettled: () => {
       setSavingSource(null);
-      queryClient.invalidateQueries({ queryKey: ["user-filters", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["user-filters", user?.id, activeWorkspaceId] });
     },
   });
 

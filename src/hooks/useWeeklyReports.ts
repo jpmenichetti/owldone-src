@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useWorkspaces } from "./useWorkspaces";
 
 export type WeeklyReport = {
   id: string;
   user_id: string;
+  workspace_id: string;
   week_start: string;
   week_end: string;
   summary: string;
@@ -14,26 +16,27 @@ export type WeeklyReport = {
 
 export function useWeeklyReports() {
   const { user } = useAuth();
+  const { activeWorkspaceId } = useWorkspaces();
   const queryClient = useQueryClient();
 
   const reportsQuery = useQuery({
-    queryKey: ["weekly-reports", user?.id],
+    queryKey: ["weekly-reports", user?.id, activeWorkspaceId],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("user-api", {
-        body: { action: "get_weekly_reports" },
-      });
+      const body: Record<string, unknown> = { action: "get_weekly_reports" };
+      if (activeWorkspaceId) body.workspace_id = activeWorkspaceId;
+      const { data, error } = await supabase.functions.invoke("user-api", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       return data as WeeklyReport[];
     },
-    enabled: !!user,
+    enabled: !!user && !!activeWorkspaceId,
   });
 
   const generateReport = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("generate-weekly-report", {
-        body: {},
-      });
+      const body: Record<string, unknown> = {};
+      if (activeWorkspaceId) body.workspace_id = activeWorkspaceId;
+      const { data, error } = await supabase.functions.invoke("generate-weekly-report", { body });
       if (error) throw error;
 
       const results = data?.results as Array<{ user_id: string; status: string }> | undefined;

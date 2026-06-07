@@ -8,6 +8,8 @@ type DbClient = any;
 // ============================================================
 const SAMPLE_RATE = 0.2;
 const FUNCTION_NAME = "user-api";
+const MAX_WORKSPACES = 5;
+const WORKSPACE_NAME_MAX = 60;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +62,41 @@ function logLatency(
   }).then();
 }
 
+async function ensureDefaultWorkspace(db: DbClient, userId: string): Promise<string> {
+  const { data: existing } = await db
+    .from("workspaces")
+    .select("id, is_default")
+    .eq("user_id", userId)
+    .order("position", { ascending: true });
+  if (existing && existing.length > 0) {
+    const def = existing.find((w: any) => w.is_default) ?? existing[0];
+    if (!def.is_default) {
+      await db.from("workspaces").update({ is_default: true }).eq("id", def.id);
+    }
+    return def.id;
+  }
+  const { data: created, error } = await db
+    .from("workspaces")
+    .insert({ user_id: userId, name: "My tasks", is_default: true, position: 0 })
+    .select("id")
+    .single();
+  if (error) throw error;
+  return created.id;
+}
+
+async function hasWorkspacesFeature(db: DbClient, userId: string): Promise<boolean> {
+  const { data } = await db
+    .from("user_features")
+    .select("feature, enabled, expires_at")
+    .eq("user_id", userId)
+    .eq("feature", "workspaces")
+    .eq("enabled", true)
+    .maybeSingle();
+  if (!data) return false;
+  if (data.expires_at && data.expires_at < new Date().toISOString()) return false;
+  return true;
+}
+
 // ============================================================
 // Handler type
 // ============================================================
@@ -67,23 +104,29 @@ type Ctx = { db: DbClient; userId: string; params: any };
 type Handler = (ctx: Ctx) => Promise<Response>;
 
 // ============================================================
-// Operation handlers (one function per action)
+// Operation handlers
 // ============================================================
-export async function getFilters({ db, userId }: Ctx): Promise<Response> {
+export async function getFilters({ db, userId, params }: Ctx): Promise<Response> {
+  const workspaceId = params.workspace_id ?? (await ensureDefaultWorkspace(db, userId));
   const { data, error } = await db
     .from("user_filters")
-    .select("show_overdue, selected_tags")
+    .select("show_overdue, selected_tags, workspace_id")
     .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .maybeSingle();
   if (error) throw error;
-  return json(data ?? { show_overdue: false, selected_tags: [] });
+  return json(data ?? { show_overdue: false, selected_tags: [], workspace_id: workspaceId });
 }
 
 export async function upsertFilters({ db, userId, params }: Ctx): Promise<Response> {
   const { show_overdue, selected_tags } = params;
+  const workspaceId = params.workspace_id ?? (await ensureDefaultWorkspace(db, userId));
   const { error } = await db
     .from("user_filters")
-    .upsert({ user_id: userId, show_overdue, selected_tags }, { onConflict: "user_id" });
+    .upsert(
+      { user_id: userId, workspace_id: workspaceId, show_overdue, selected_tags },
+      { onConflict: "user_id,workspace_id" },
+    );
   if (error) throw error;
   return json({ success: true });
 }
@@ -117,11 +160,13 @@ export async function checkAdmin({ db, userId }: Ctx): Promise<Response> {
   return json({ isAdmin: !!data });
 }
 
-export async function getWeeklyReports({ db, userId }: Ctx): Promise<Response> {
+export async function getWeeklyReports({ db, userId, params }: Ctx): Promise<Response> {
+  const workspaceId = params.workspace_id ?? (await ensureDefaultWorkspace(db, userId));
   const { data, error } = await db
     .from("weekly_reports")
     .select("*")
     .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
     .order("week_start", { ascending: false })
     .limit(12);
   if (error) throw error;
@@ -161,6 +206,120 @@ export async function getFeatures({ db, userId }: Ctx): Promise<Response> {
   return json({ features: active });
 }
 
+// ----- Workspaces -----
+export async function listWorkspaces({ db, userId }: Ctx): Promise<Response> {
+  await ensureDefaultWorkspace(db, userId);
+  const { data, error } = await db
+    .from("workspaces")
+    .select("id, name, is_default, position, created_at")
+    .eq("user_id", userId)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return json(data ?? []);
+}
+
+export async function createWorkspace({ db, userId, params }: Ctx): Promise<Response> {
+  const enabled = await hasWorkspacesFeature(db, userId);
+  if (!enabled) throw { status: 403, message: "Workspaces feature not enabled" };
+
+  const name = String(params.name ?? "").trim();
+  if (!name) throw { status: 400, message: "Name required" };
+  if (name.length > WORKSPACE_NAME_MAX) throw { status: 400, message: "Name too long" };
+
+  const { count } = await db
+    .from("workspaces")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if ((count ?? 0) >= MAX_WORKSPACES) {
+    throw { status: 400, message: `Workspace limit reached (max ${MAX_WORKSPACES})` };
+  }
+
+  const { data, error } = await db
+    .from("workspaces")
+    .insert({ user_id: userId, name, is_default: false, position: count ?? 0 })
+    .select("id, name, is_default, position, created_at")
+    .single();
+  if (error) {
+    if (error.code === "23505") throw { status: 400, message: "Name already in use" };
+    throw error;
+  }
+  return json(data);
+}
+
+export async function renameWorkspace({ db, userId, params }: Ctx): Promise<Response> {
+  const { id } = params;
+  const name = String(params.name ?? "").trim();
+  if (!id) throw { status: 400, message: "Missing id" };
+  if (!name) throw { status: 400, message: "Name required" };
+  if (name.length > WORKSPACE_NAME_MAX) throw { status: 400, message: "Name too long" };
+
+  const { error } = await db
+    .from("workspaces")
+    .update({ name })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) {
+    if (error.code === "23505") throw { status: 400, message: "Name already in use" };
+    throw error;
+  }
+  return json({ success: true });
+}
+
+export async function deleteWorkspace({ db, userId, params }: Ctx): Promise<Response> {
+  const { id } = params;
+  if (!id) throw { status: 400, message: "Missing id" };
+
+  const { data: ws, error: wsErr } = await db
+    .from("workspaces")
+    .select("id, is_default")
+    .eq("user_id", userId);
+  if (wsErr) throw wsErr;
+  const target = (ws ?? []).find((w: any) => w.id === id);
+  if (!target) throw { status: 404, message: "Workspace not found" };
+  if (target.is_default) throw { status: 400, message: "Cannot delete default workspace" };
+  if ((ws ?? []).length <= 1) throw { status: 400, message: "Cannot delete last workspace" };
+
+  // FK cascade will remove todos, weekly_reports, user_filters
+  const { error } = await db
+    .from("workspaces")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return json({ success: true });
+}
+
+export async function setDefaultWorkspace({ db, userId, params }: Ctx): Promise<Response> {
+  const { id } = params;
+  if (!id) throw { status: 400, message: "Missing id" };
+  // Clear all defaults, then set new one
+  await db.from("workspaces").update({ is_default: false }).eq("user_id", userId);
+  const { error } = await db
+    .from("workspaces")
+    .update({ is_default: true })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return json({ success: true });
+}
+
+export async function listAllTags({ db, userId }: Ctx): Promise<Response> {
+  // Tags shared across all workspaces for this user
+  const { data, error } = await db
+    .from("todos")
+    .select("tags")
+    .eq("user_id", userId);
+  if (error) throw error;
+  const set = new Set<string>();
+  for (const row of data ?? []) {
+    for (const t of row.tags ?? []) {
+      if (typeof t === "string" && t.length > 0) set.add(t);
+    }
+  }
+  return json({ tags: Array.from(set).sort() });
+}
+
 // ============================================================
 // Action registry
 // ============================================================
@@ -174,6 +333,12 @@ const handlers: Record<string, Handler> = {
   get_language: getLanguage,
   set_language: setLanguage,
   get_features: getFeatures,
+  list_workspaces: listWorkspaces,
+  create_workspace: createWorkspace,
+  rename_workspace: renameWorkspace,
+  delete_workspace: deleteWorkspace,
+  set_default_workspace: setDefaultWorkspace,
+  list_all_tags: listAllTags,
 };
 
 // ============================================================

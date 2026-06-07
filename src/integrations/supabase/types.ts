@@ -208,6 +208,7 @@ export type Database = {
           updated_at: string
           urls: string[] | null
           user_id: string
+          workspace_id: string
         }
         Insert: {
           category: string
@@ -226,6 +227,7 @@ export type Database = {
           updated_at?: string
           urls?: string[] | null
           user_id: string
+          workspace_id: string
         }
         Update: {
           category?: string
@@ -244,8 +246,17 @@ export type Database = {
           updated_at?: string
           urls?: string[] | null
           user_id?: string
+          workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "todos_workspace_fk"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_features: {
         Row: {
@@ -282,6 +293,7 @@ export type Database = {
           show_overdue: boolean
           updated_at: string
           user_id: string
+          workspace_id: string
         }
         Insert: {
           created_at?: string
@@ -290,6 +302,7 @@ export type Database = {
           show_overdue?: boolean
           updated_at?: string
           user_id: string
+          workspace_id: string
         }
         Update: {
           created_at?: string
@@ -298,8 +311,17 @@ export type Database = {
           show_overdue?: boolean
           updated_at?: string
           user_id?: string
+          workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_filters_workspace_fk"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_preferences: {
         Row: {
@@ -355,6 +377,7 @@ export type Database = {
           user_id: string
           week_end: string
           week_start: string
+          workspace_id: string
         }
         Insert: {
           created_at?: string
@@ -364,6 +387,7 @@ export type Database = {
           user_id: string
           week_end: string
           week_start: string
+          workspace_id: string
         }
         Update: {
           created_at?: string
@@ -373,6 +397,45 @@ export type Database = {
           user_id?: string
           week_end?: string
           week_start?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_reports_workspace_fk"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspaces: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean
+          name: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -450,6 +513,7 @@ export type Database = {
           updated_at: string
           urls: string[] | null
           user_id: string
+          workspace_id: string
         }[]
         SetofOptions: {
           from: "*"
