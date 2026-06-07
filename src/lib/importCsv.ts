@@ -128,7 +128,14 @@ export interface ImportedTodo {
   removed_at: string | null;
   created_at: string;
   updated_at: string;
+  /**
+   * Optional workspace name parsed from the CSV. `null` means the row had no
+   * workspace (or the column was absent) — restore should put it into the
+   * user's default workspace.
+   */
+  workspace_name: string | null;
 }
+
 
 export interface ImportResult {
   validTodos: ImportedTodo[];
