@@ -714,6 +714,10 @@ const translations: Record<Language, Record<string, string>> = {
     "report.copyFailed": "Kopieren fehlgeschlagen",
     "report.rateLimited": "Anfragelimit erreicht. Bitte später erneut versuchen.",
     "report.generateFailed": "Bericht konnte nicht generiert werden",
+    "report.download": "Alle herunterladen",
+    "report.downloadPdf": "Als PDF herunterladen",
+    "report.downloadDocx": "Als Word herunterladen",
+    "report.downloadMd": "Als Markdown herunterladen",
 
     "todos.error.removeFailed": "Aufgabe konnte nicht entfernt werden",
     "todos.error.addFailed": "Aufgabe konnte nicht hinzugefügt werden",
