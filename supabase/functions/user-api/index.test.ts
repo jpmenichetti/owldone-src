@@ -141,7 +141,10 @@ Deno.test("upsertFilters forces user_id from auth context (ignores body user_id)
   });
   const c = calls.find((c) => c.table === "user_filters" && c.op === "upsert")!;
   assertEquals(c.args[0].user_id, USER_ID);
-  assertEquals(c.options?.onConflict, "user_id");
+  // workspace_id is injected from the auth-scoped default; body value cannot override it.
+  assertEquals(c.args[0].workspace_id, "ws-default");
+  assertEquals(c.options?.onConflict, "user_id,workspace_id");
+
 });
 
 // ---------- onboarding ----------
