@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useSimulatedTime } from "./useSimulatedTime";
+import { useWorkspaces } from "./useWorkspaces";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nContext";
