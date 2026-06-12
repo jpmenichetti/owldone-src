@@ -1,50 +1,51 @@
 ## Goal
 
-Replace the client-side auto-archive/transition logic with a backend cron job that evaluates lifecycle rules globally (every workspace, every user) on a fixed schedule, using UTC day/week boundaries.
+Show a small numeric badge next to each workspace tab indicating the count of overdue tasks in that workspace, so users can spot overdue work in workspaces they aren't currently viewing.
+
+## Definition of "overdue" (server side, UTC)
+
+Matches `isOverdue` in `src/hooks/useTodos.ts` but evaluated in UTC (consistent with the new server lifecycle):
+- not completed AND not removed
+- category `today`: created on an earlier UTC day than now
+- category `this_week`: now > Sunday 23:59:59 UTC of the created week
+- `next_week` / `others`: never overdue
 
 ## Backend
 
-1. **New edge function** `supabase/functions/process-lifecycle-transitions/index.ts`
-   - Auth: same pattern as `process-recurring-tasks` (`x-cron-secret` via `verify_cron_secret`, or service-role bearer).
-   - Loads all non-archived todos in batches (`removed = false`), using service role to bypass RLS.
-   - Applies the same rules currently in `src/lib/lifecycle.ts`, but in UTC:
-     - completed `today` → archive once UTC date > completed UTC date
-     - completed `this_week` / `next_week` → archive after Sunday 23:59:59 UTC of the completed week
-     - uncompleted `next_week` → move to `this_week` after Sunday 23:59:59 UTC of created week
-     - `others` and uncompleted today/this_week → untouched
-   - Batches updates (chunked `UPDATE ... WHERE id IN (...)`) for `removed=true, removed_at=now()` and `category='this_week'`.
-   - Returns `{ archived, moved }` counts.
+**`supabase/functions/user-api/index.ts`** — add new action `list_workspace_overdue_counts`:
+- Auth: existing user JWT.
+- Single query: `select workspace_id, category, created_at from todos where user_id = $user and removed = false and completed = false and category in ('today','this_week')`.
+- Group/reduce in TS using inlined UTC `endOfWeek` / `isAfterDay` helpers.
+- Return `{ counts: Record<string, number> }` keyed by workspace_id.
 
-2. **Shared rule helpers** ported into the function file (kept self-contained per edge-function convention; no cross-function imports). Pure functions kept identical in shape to `computeTransitions` so the existing unit tests still describe the logic.
-
-3. **Cron schedule** via `supabase--insert` running `cron.schedule(...)` to call the function hourly with `x-cron-secret`. Follows the exact pattern documented for scheduled functions (anon key + project URL embedded so it isn't a portable migration).
-
-4. **Tests** `supabase/functions/process-lifecycle-transitions/index.test.ts`
-   - Unauthorized request → 401.
-   - With cron secret + seeded todos in multiple workspaces → correct ids archived/moved, others untouched.
-   - UTC boundary cases: Sunday rollover, same-day completion not archived.
+Add Deno tests asserting:
+- Overdue today (yesterday UTC) counted.
+- Same-day today not counted.
+- Overdue this_week (last week UTC) counted.
+- `next_week` and completed items ignored.
 
 ## Frontend
 
-1. **`src/hooks/useTodos.ts`**
-   - Remove `autoArchiveMutation` and the `useEffect` that calls it (lines ~53–81).
-   - Drop the `computeTransitions` / `endOfWeek` / `isAfterDay` imports where only used for real-time transitions.
-   - Keep `endOfWeek` / `isAfterDay` usage that powers the **simulated-time virtual views** (Time Travel) and `isOverdue` — those remain client-side and unchanged.
+1. **New hook** `src/hooks/useWorkspaceOverdueCounts.ts`
+   - `useQuery(["workspace-overdue-counts", userId], …)` calling `user-api` action `list_workspace_overdue_counts`.
+   - Refetch on window focus and every 5 min.
+   - Invalidated by todo mutations: add `queryClient.invalidateQueries({ queryKey: ["workspace-overdue-counts"] })` inside the existing `invalidateAll()` in `useTodos.ts`.
 
-2. **`todos-api` edge function**
-   - Keep the `auto_transitions` action for now (used by simulated mode reconciliation if any). If unused after frontend change, remove it in the same pass. Will verify via `rg` during build.
+2. **`src/components/WorkspaceTabs.tsx`**
+   - Consume the hook.
+   - For each workspace tab, if `count > 0` render a small numeric `Badge` (destructive variant, compact: `text-[10px] px-1 py-0 min-w-[1.25rem] h-4 leading-none`) inside the existing button, after the name. **Number only — no "overdue" word.** Hidden when count is 0.
+   - Accessible label: append ` (N overdue)` to the tab's aria-label so screen readers still convey meaning even though the visible badge is just a number.
 
-3. **`src/lib/lifecycle.ts`** stays — still used for simulated views, overdue detection, and as the spec the backend test mirrors.
+3. **i18n** — add a single key `workspace.overdueAria` = "{count} overdue" used only for the aria-label (not displayed).
 
 ## Out of scope
 
-- Per-user timezone support (explicitly deferred; UTC is acceptable per user decision).
-- Changing simulated-time / Time Travel behavior.
-- Touching recurrence cron.
+- Per-user timezone (UTC consistent with backend lifecycle decision).
+- Overdue badge on the workspace dropdown menu items or on the "+" button.
+- Caching across sessions / push updates — react-query refetch is sufficient.
 
 ## Technical notes
 
-- Cron registration uses `supabase--insert` (not migration) because it embeds project-specific URL/anon key.
-- Service-role client is required so the function can write across all users without RLS friction.
-- Process in pages of e.g. 1000 todos to keep memory bounded; current row counts make a single pass fine, but pagination keeps it safe as data grows.
-- Memory file `mem://features/lifecycle-automation` will need a follow-up note that transitions are server-driven hourly in UTC (done after implementation).
+- One round-trip on app load, cheap query (indexed on user_id).
+- Encapsulated in the existing `user-api` edge function per the project's "backend logic exclusively via Edge Functions" rule.
+- Helpers (`endOfWeekUTC`, `isAfterDayUTC`) already exist in `process-lifecycle-transitions`; duplicate the few lines inside `user-api` rather than cross-import (per edge-function self-containment convention).
