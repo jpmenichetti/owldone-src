@@ -451,17 +451,14 @@ export async function getImageUrl(path: string): Promise<string> {
 
 export function isOverdue(todo: Todo, now?: Date): boolean {
   if (todo.completed) return false;
-  if (!now) now = new Date();
+  const ref = now ?? new Date();
   const created = new Date(todo.created_at);
 
   if (todo.category === "today") {
-    return now.toDateString() !== created.toDateString() && now > created;
+    return isAfterDay(ref, created);
   }
   if (todo.category === "this_week") {
-    const endOfWeek = new Date(created);
-    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-    endOfWeek.setHours(23, 59, 59, 999);
-    return now > endOfWeek;
+    return ref > endOfWeek(created);
   }
   return false;
 }
