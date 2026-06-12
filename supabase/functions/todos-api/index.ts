@@ -429,35 +429,11 @@ export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Res
   return json({ success: true });
 }
 
-export async function autoTransitions({ db, userId, params }: Ctx): Promise<Response> {
-  const { idsToArchive, idsToMoveToThisWeek } = params;
-  const now = new Date().toISOString();
-  if (Array.isArray(idsToArchive) && idsToArchive.length > 0) {
-    assertIdList(idsToArchive);
-    for (let i = 0; i < idsToArchive.length; i += 500) {
-      const batch = idsToArchive.slice(i, i + 500);
-      const { error } = await db
-        .from("todos")
-        .update({ removed: true, removed_at: now })
-        .in("id", batch)
-        .eq("user_id", userId);
-      if (error) throw error;
-    }
-  }
-  if (Array.isArray(idsToMoveToThisWeek) && idsToMoveToThisWeek.length > 0) {
-    assertIdList(idsToMoveToThisWeek);
-    for (let i = 0; i < idsToMoveToThisWeek.length; i += 500) {
-      const batch = idsToMoveToThisWeek.slice(i, i + 500);
-      const { error } = await db
-        .from("todos")
-        .update({ category: "this_week", created_at: now })
-        .in("id", batch)
-        .eq("user_id", userId);
-      if (error) throw error;
-    }
-  }
-  return json({ success: true });
-}
+// Note: lifecycle transitions (auto-archive completed todos, next_week →
+// this_week rollover) are handled by the `process-lifecycle-transitions`
+// cron-scheduled edge function. They are no longer triggered per-request
+// from the client.
+
 
 export async function deleteTag({ db, userId, params }: Ctx): Promise<Response> {
   // Tags are shared across workspaces — delete from ALL todos for this user.
@@ -502,8 +478,8 @@ const handlers: Record<string, Handler> = {
   delete_all: deleteAll,
   bulk_insert: bulkInsert,
   archive_completed: archiveCompleted,
-  auto_transitions: autoTransitions,
   delete_tag: deleteTag,
+
 };
 
 // ============================================================

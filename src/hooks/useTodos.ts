@@ -1,5 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useSimulatedTime } from "./useSimulatedTime";
@@ -7,7 +7,7 @@ import { useWorkspaces } from "./useWorkspaces";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nContext";
-import { computeTransitions, endOfWeek, isAfterDay } from "@/lib/lifecycle";
+import { endOfWeek, isAfterDay } from "@/lib/lifecycle";
 
 
 export type Todo = Tables<"todos"> & { images?: Tables<"todo_images">[] };
@@ -50,13 +50,9 @@ export function useTodos(searchText = "") {
   const pendingRemoveIdsRef = useRef<Set<string>>(new Set());
   const resolveId = useCallback((id: string) => idMapRef.current.get(id) ?? id, []);
 
-  // Auto-archive completed todos based on lifecycle rules
-  const autoArchiveMutation = useMutation({
-    mutationFn: async ({ idsToArchive, idsToMoveToThisWeek }: { idsToArchive: string[]; idsToMoveToThisWeek: string[] }) => {
-      await invoke("todos-api", { action: "auto_transitions", idsToArchive, idsToMoveToThisWeek });
-    },
-    onSuccess: invalidateAll,
-  });
+  // Lifecycle transitions (auto-archive, next_week → this_week) run server-side
+  // via the `process-lifecycle-transitions` cron (hourly, UTC, all workspaces).
+  // The client no longer evaluates them in real time.
 
   const todosQuery = useQuery({
     queryKey: ["todos", user?.id, activeWorkspaceId],
@@ -67,18 +63,6 @@ export function useTodos(searchText = "") {
     enabled: !!user && !!activeWorkspaceId,
   });
 
-
-  // Real auto-archive/transitions: only when NOT simulating
-  useEffect(() => {
-    if (simulatedDate) return;
-    const todos = todosQuery.data;
-    if (!todos || autoArchiveMutation.isPending) return;
-
-    const { idsToArchive, idsToMoveToThisWeek } = computeTransitions(todos, new Date());
-    if (idsToArchive.length > 0 || idsToMoveToThisWeek.length > 0) {
-      autoArchiveMutation.mutate({ idsToArchive, idsToMoveToThisWeek });
-    }
-  }, [todosQuery.data, simulatedDate]);
 
   const ARCHIVE_PAGE_SIZE = 20;
 
