@@ -54,6 +54,10 @@ function buildMockDb(
         c.filters.push({ method: "eq", args: a });
         return proxy;
       },
+      in(...a: any[]) {
+        c.filters.push({ method: "in", args: a });
+        return proxy;
+      },
       order(...a: any[]) {
         c.filters.push({ method: "order", args: a });
         return proxy;
