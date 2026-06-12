@@ -7,6 +7,7 @@ import { useWorkspaces } from "./useWorkspaces";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nContext";
+import { computeTransitions, endOfWeek, isAfterDay } from "@/lib/lifecycle";
 
 
 export type Todo = Tables<"todos"> & { images?: Tables<"todo_images">[] };
