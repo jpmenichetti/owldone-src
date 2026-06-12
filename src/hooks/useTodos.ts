@@ -42,7 +42,9 @@ export function useTodos(searchText = "") {
     queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
     queryClient.invalidateQueries({ queryKey: ["archived-todos-count"] });
     queryClient.invalidateQueries({ queryKey: ["all-tags"] });
+    queryClient.invalidateQueries({ queryKey: ["workspace-overdue-counts"] });
   };
+
 
   // Track temp ID → real ID mappings for operations on freshly-created todos
   const idMapRef = useRef<Map<string, string>>(new Map());
