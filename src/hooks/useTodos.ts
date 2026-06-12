@@ -74,39 +74,7 @@ export function useTodos(searchText = "") {
     const todos = todosQuery.data;
     if (!todos || autoArchiveMutation.isPending) return;
 
-    const now = new Date();
-    const idsToArchive: string[] = [];
-    const idsToMoveToThisWeek: string[] = [];
-
-    for (const todo of todos) {
-      const created = new Date(todo.created_at);
-
-      if (!todo.completed && todo.category === "next_week") {
-        const endOfCreatedWeek = new Date(created);
-        endOfCreatedWeek.setDate(endOfCreatedWeek.getDate() + (7 - endOfCreatedWeek.getDay()));
-        endOfCreatedWeek.setHours(23, 59, 59, 999);
-        if (now > endOfCreatedWeek) {
-          idsToMoveToThisWeek.push(todo.id);
-        }
-      }
-
-      if (!todo.completed || !todo.completed_at) continue;
-      const completedDate = new Date(todo.completed_at);
-
-      if (todo.category === "today") {
-        if (now.toDateString() !== completedDate.toDateString() && now > completedDate) {
-          idsToArchive.push(todo.id);
-        }
-      } else if (todo.category === "this_week" || todo.category === "next_week") {
-        const endOfWeek = new Date(completedDate);
-        endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-        endOfWeek.setHours(23, 59, 59, 999);
-        if (now > endOfWeek) {
-          idsToArchive.push(todo.id);
-        }
-      }
-    }
-
+    const { idsToArchive, idsToMoveToThisWeek } = computeTransitions(todos, new Date());
     if (idsToArchive.length > 0 || idsToMoveToThisWeek.length > 0) {
       autoArchiveMutation.mutate({ idsToArchive, idsToMoveToThisWeek });
     }
