@@ -346,6 +346,43 @@ export async function listAllTags({ db, userId }: Ctx): Promise<Response> {
   return json({ tags: Array.from(set).sort() });
 }
 
+// ----- Overdue counts per workspace (UTC) -----
+// Mirrors `isOverdue` in src/hooks/useTodos.ts, but evaluated in UTC, consistent
+// with the server-side lifecycle cron.
+function endOfWeekUTC(date: Date): Date {
+  const eow = new Date(date);
+  const daysUntilSunday = (7 - eow.getUTCDay()) % 7;
+  eow.setUTCDate(eow.getUTCDate() + daysUntilSunday);
+  eow.setUTCHours(23, 59, 59, 999);
+  return eow;
+}
+function isAfterDayUTC(now: Date, then: Date): boolean {
+  return now.toISOString().slice(0, 10) !== then.toISOString().slice(0, 10) && now > then;
+}
+
+export async function listWorkspaceOverdueCounts({ db, userId }: Ctx): Promise<Response> {
+  const { data, error } = await db
+    .from("todos")
+    .select("workspace_id, category, created_at")
+    .eq("user_id", userId)
+    .eq("removed", false)
+    .eq("completed", false)
+    .in("category", ["today", "this_week"]);
+  if (error) throw error;
+
+  const now = new Date();
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    if (!row.workspace_id) continue;
+    const created = new Date(row.created_at);
+    let overdue = false;
+    if (row.category === "today") overdue = isAfterDayUTC(now, created);
+    else if (row.category === "this_week") overdue = now > endOfWeekUTC(created);
+    if (overdue) counts[row.workspace_id] = (counts[row.workspace_id] ?? 0) + 1;
+  }
+  return json({ counts });
+}
+
 // ============================================================
 // Action registry
 // ============================================================
@@ -365,6 +402,7 @@ const handlers: Record<string, Handler> = {
   delete_workspace: deleteWorkspace,
   set_default_workspace: setDefaultWorkspace,
   list_all_tags: listAllTags,
+  list_workspace_overdue_counts: listWorkspaceOverdueCounts,
 };
 
 // ============================================================
