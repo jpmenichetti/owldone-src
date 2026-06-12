@@ -359,13 +359,8 @@ export function useTodos(searchText = "") {
     const simulatedArchived: Todo[] = [...rawArchived];
 
     for (const todo of rawTodos) {
-      const created = new Date(todo.created_at);
-
       if (!todo.completed && todo.category === "next_week") {
-        const endOfCreatedWeek = new Date(created);
-        endOfCreatedWeek.setDate(endOfCreatedWeek.getDate() + (7 - endOfCreatedWeek.getDay()));
-        endOfCreatedWeek.setHours(23, 59, 59, 999);
-        if (now > endOfCreatedWeek) {
+        if (now > endOfWeek(new Date(todo.created_at))) {
           activeTodos.push({ ...todo, category: "this_week" });
           continue;
         }
@@ -376,12 +371,9 @@ export function useTodos(searchText = "") {
         let shouldArchive = false;
 
         if (todo.category === "today") {
-          shouldArchive = now.toDateString() !== completedDate.toDateString() && now > completedDate;
+          shouldArchive = isAfterDay(now, completedDate);
         } else if (todo.category === "this_week" || todo.category === "next_week") {
-          const endOfWeek = new Date(completedDate);
-          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-          endOfWeek.setHours(23, 59, 59, 999);
-          shouldArchive = now > endOfWeek;
+          shouldArchive = now > endOfWeek(completedDate);
         }
 
         if (shouldArchive) {
