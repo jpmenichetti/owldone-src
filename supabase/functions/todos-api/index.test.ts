@@ -16,7 +16,7 @@ import {
   deleteAll,
   bulkInsert,
   archiveCompleted,
-  autoTransitions,
+  
 } from "./index.ts";
 
 // ---------- Test setup helpers ----------
@@ -446,43 +446,10 @@ Deno.test("archiveCompleted soft-deletes ids in batches", async () => {
   );
 });
 
-Deno.test("autoTransitions performs both archive and category move", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
+// autoTransitions tests removed — lifecycle moved to
+// `process-lifecycle-transitions` cron function.
 
-  const res = await autoTransitions({
-    db,
-    userId: USER_ID,
-    params: {
-      idsToArchive: ["x1", "x2"],
-      idsToMoveToThisWeek: ["m1"],
-    },
-  });
-  const body = await readJson(res);
 
-  assertEquals(body, { success: true });
-  const updateCalls = calls.filter((c) => c.op === "update");
-  // Batched: one .in() for archive (x1,x2), one .in() for move (m1)
-  assertEquals(updateCalls.length, 2);
-  const moveCall = updateCalls.find(
-    (c) => (c.args[0] as any).category === "this_week",
-  );
-  assert(moveCall);
-});
-
-Deno.test("autoTransitions is a no-op with empty arrays", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
-
-  const res = await autoTransitions({
-    db,
-    userId: USER_ID,
-    params: { idsToArchive: [], idsToMoveToThisWeek: [] },
-  });
-  await readJson(res);
-
-  assertEquals(calls.filter((c) => c.op === "update").length, 0);
-});
 
 Deno.test("addTodo propagates DB errors", async () => {
   const calls: Call[] = [];
@@ -803,67 +770,10 @@ Deno.test("archiveCompleted rejects over 1000 ids", async () => {
   );
 });
 
-// ---------- autoTransitions limits + batching ----------
+// autoTransitions removed — lifecycle is now handled by the
+// `process-lifecycle-transitions` cron-scheduled edge function.
 
-Deno.test("autoTransitions rejects over 1000 idsToArchive", async () => {
-  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
-  await expectBadRequest(
-    () => autoTransitions({
-      db: noopDb(),
-      userId: USER_ID,
-      params: { idsToArchive: ids, idsToMoveToThisWeek: [] },
-    }),
-    /too many/i,
-  );
-});
 
-Deno.test("autoTransitions rejects over 1000 idsToMoveToThisWeek", async () => {
-  const ids = Array.from({ length: 1001 }, (_, i) => `id-${i}`);
-  await expectBadRequest(
-    () => autoTransitions({
-      db: noopDb(),
-      userId: USER_ID,
-      params: { idsToArchive: [], idsToMoveToThisWeek: ids },
-    }),
-    /too many/i,
-  );
-});
-
-Deno.test("autoTransitions batches large id arrays via .in()", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
-
-  const idsToArchive = Array.from({ length: 750 }, (_, i) => `a${i}`);
-  const idsToMoveToThisWeek = Array.from({ length: 600 }, (_, i) => `m${i}`);
-
-  await autoTransitions({
-    db,
-    userId: USER_ID,
-    params: { idsToArchive, idsToMoveToThisWeek },
-  });
-
-  const updateCalls = calls.filter((c) => c.op === "update");
-  assertEquals(updateCalls.length, 4);
-  const inSizes = updateCalls
-    .map((c) => c.filters.find((f) => f.method === "in")!.args[1].length)
-    .sort((a, b) => a - b);
-  assertEquals(inSizes, [100, 250, 500, 500]);
-});
-
-Deno.test("autoTransitions skips category-move when idsToMoveToThisWeek undefined", async () => {
-  const calls: Call[] = [];
-  const db = buildMockDb({ todos: () => ({ error: null }) }, calls);
-
-  await autoTransitions({
-    db,
-    userId: USER_ID,
-    params: { idsToArchive: ["a1"] },
-  });
-
-  const updateCalls = calls.filter((c) => c.op === "update");
-  assertEquals(updateCalls.length, 1);
-  assertEquals((updateCalls[0].args[0] as any).removed, true);
-});
 
 // ---------- URL protocol allowlist ----------
 
