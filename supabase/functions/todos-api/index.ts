@@ -478,8 +478,8 @@ const handlers: Record<string, Handler> = {
   delete_all: deleteAll,
   bulk_insert: bulkInsert,
   archive_completed: archiveCompleted,
-  auto_transitions: autoTransitions,
   delete_tag: deleteTag,
+
 };
 
 // ============================================================
