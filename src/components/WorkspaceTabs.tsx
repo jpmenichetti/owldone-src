@@ -31,6 +31,8 @@ import {
 import { Plus, MoreVertical, Pencil, Trash2, Star, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useWorkspaceOverdueCounts } from "@/hooks/useWorkspaceOverdueCounts";
+import { Badge } from "@/components/ui/badge";
 
 export default function WorkspaceTabs() {
   const { t } = useI18n();
@@ -45,6 +47,7 @@ export default function WorkspaceTabs() {
     setDefaultWorkspace,
     maxWorkspaces,
   } = useWorkspaces();
+  const { data: overdueCounts } = useWorkspaceOverdueCounts();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
@@ -115,6 +118,10 @@ export default function WorkspaceTabs() {
       <div className="flex flex-wrap items-center gap-1">
         {workspaces.map((ws) => {
           const active = ws.id === activeWorkspaceId;
+          const overdue = overdueCounts?.[ws.id] ?? 0;
+          const overdueLabel = overdue > 0
+            ? ` (${t("workspace.overdueAria").replace("{count}", String(overdue))})`
+            : "";
           return (
             <div
               key={ws.id}
@@ -129,6 +136,7 @@ export default function WorkspaceTabs() {
                 type="button"
                 onClick={() => setActiveWorkspaceId(ws.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium"
+                aria-label={`${ws.name}${overdueLabel}`}
               >
                 {settingDefaultId === ws.id ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
@@ -136,6 +144,15 @@ export default function WorkspaceTabs() {
                   <Star className={cn("h-3 w-3", active ? "fill-current" : "fill-amber-400 text-amber-400")} />
                 ) : null}
                 <span className="max-w-[160px] truncate">{ws.name}</span>
+                {overdue > 0 && (
+                  <Badge
+                    variant="destructive"
+                    aria-hidden="true"
+                    className="ml-1 text-[10px] px-1 py-0 min-w-[1.25rem] h-4 leading-none justify-center"
+                  >
+                    {overdue}
+                  </Badge>
+                )}
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

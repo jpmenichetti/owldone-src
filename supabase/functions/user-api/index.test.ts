@@ -10,6 +10,7 @@ import {
   getLanguage,
   setLanguage,
   getFeatures,
+  listWorkspaceOverdueCounts,
 } from "./index.ts";
 
 const USER_ID = "user-abc";
@@ -52,6 +53,10 @@ function buildMockDb(
     const proxy: any = {
       eq(...a: any[]) {
         c.filters.push({ method: "eq", args: a });
+        return proxy;
+      },
+      in(...a: any[]) {
+        c.filters.push({ method: "in", args: a });
         return proxy;
       },
       order(...a: any[]) {
@@ -284,3 +289,36 @@ Deno.test("getFeatures: returns {features:[]} when DB returns null", async () =>
   const res = await getFeatures({ db: db as any, userId: USER_ID, params: {} });
   assertEquals(await readJson(res), { features: [] });
 });
+
+// ---------- listWorkspaceOverdueCounts ----------
+
+Deno.test("listWorkspaceOverdueCounts: counts overdue today + this_week, ignores fresh/completed/next_week", async () => {
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const lastWeek = new Date(now);
+  lastWeek.setUTCDate(lastWeek.getUTCDate() - 14);
+
+  const db = buildMockDb({
+    todos: () => ({
+      data: [
+        { workspace_id: "ws-a", category: "today", created_at: yesterday.toISOString() },
+        { workspace_id: "ws-a", category: "today", created_at: now.toISOString() },
+        { workspace_id: "ws-b", category: "this_week", created_at: lastWeek.toISOString() },
+        { workspace_id: "ws-b", category: "next_week", created_at: lastWeek.toISOString() },
+        { workspace_id: null, category: "today", created_at: yesterday.toISOString() },
+      ],
+      error: null,
+    }),
+  });
+
+  const res = await listWorkspaceOverdueCounts({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { counts: { "ws-a": 1, "ws-b": 1 } });
+});
+
+Deno.test("listWorkspaceOverdueCounts: empty data returns {}", async () => {
+  const db = buildMockDb({ todos: () => ({ data: [], error: null }) });
+  const res = await listWorkspaceOverdueCounts({ db: db as any, userId: USER_ID, params: {} });
+  assertEquals(await readJson(res), { counts: {} });
+});
+

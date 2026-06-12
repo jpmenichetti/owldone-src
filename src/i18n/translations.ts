@@ -230,6 +230,7 @@ const translations: Record<Language, Record<string, string>> = {
     "workspace.renameFailed": "Failed to rename workspace",
     "workspace.deleteFailed": "Failed to delete workspace",
     "workspace.error": "Workspace error",
+    "workspace.overdueAria": "{count} overdue",
   },
   es: {
     "login.tagline": "Organiza tus tareas con categorías coloridas, notas multimedia y reglas de ciclo de vida inteligentes.",
