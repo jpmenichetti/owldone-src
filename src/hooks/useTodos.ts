@@ -7,6 +7,7 @@ import { useWorkspaces } from "./useWorkspaces";
 import { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/I18nContext";
+import { computeTransitions, endOfWeek, isAfterDay } from "@/lib/lifecycle";
 
 
 export type Todo = Tables<"todos"> & { images?: Tables<"todo_images">[] };
@@ -73,39 +74,7 @@ export function useTodos(searchText = "") {
     const todos = todosQuery.data;
     if (!todos || autoArchiveMutation.isPending) return;
 
-    const now = new Date();
-    const idsToArchive: string[] = [];
-    const idsToMoveToThisWeek: string[] = [];
-
-    for (const todo of todos) {
-      const created = new Date(todo.created_at);
-
-      if (!todo.completed && todo.category === "next_week") {
-        const endOfCreatedWeek = new Date(created);
-        endOfCreatedWeek.setDate(endOfCreatedWeek.getDate() + (7 - endOfCreatedWeek.getDay()));
-        endOfCreatedWeek.setHours(23, 59, 59, 999);
-        if (now > endOfCreatedWeek) {
-          idsToMoveToThisWeek.push(todo.id);
-        }
-      }
-
-      if (!todo.completed || !todo.completed_at) continue;
-      const completedDate = new Date(todo.completed_at);
-
-      if (todo.category === "today") {
-        if (now.toDateString() !== completedDate.toDateString() && now > completedDate) {
-          idsToArchive.push(todo.id);
-        }
-      } else if (todo.category === "this_week" || todo.category === "next_week") {
-        const endOfWeek = new Date(completedDate);
-        endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-        endOfWeek.setHours(23, 59, 59, 999);
-        if (now > endOfWeek) {
-          idsToArchive.push(todo.id);
-        }
-      }
-    }
-
+    const { idsToArchive, idsToMoveToThisWeek } = computeTransitions(todos, new Date());
     if (idsToArchive.length > 0 || idsToMoveToThisWeek.length > 0) {
       autoArchiveMutation.mutate({ idsToArchive, idsToMoveToThisWeek });
     }
@@ -390,13 +359,8 @@ export function useTodos(searchText = "") {
     const simulatedArchived: Todo[] = [...rawArchived];
 
     for (const todo of rawTodos) {
-      const created = new Date(todo.created_at);
-
       if (!todo.completed && todo.category === "next_week") {
-        const endOfCreatedWeek = new Date(created);
-        endOfCreatedWeek.setDate(endOfCreatedWeek.getDate() + (7 - endOfCreatedWeek.getDay()));
-        endOfCreatedWeek.setHours(23, 59, 59, 999);
-        if (now > endOfCreatedWeek) {
+        if (now > endOfWeek(new Date(todo.created_at))) {
           activeTodos.push({ ...todo, category: "this_week" });
           continue;
         }
@@ -407,12 +371,9 @@ export function useTodos(searchText = "") {
         let shouldArchive = false;
 
         if (todo.category === "today") {
-          shouldArchive = now.toDateString() !== completedDate.toDateString() && now > completedDate;
+          shouldArchive = isAfterDay(now, completedDate);
         } else if (todo.category === "this_week" || todo.category === "next_week") {
-          const endOfWeek = new Date(completedDate);
-          endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-          endOfWeek.setHours(23, 59, 59, 999);
-          shouldArchive = now > endOfWeek;
+          shouldArchive = now > endOfWeek(completedDate);
         }
 
         if (shouldArchive) {
@@ -490,17 +451,14 @@ export async function getImageUrl(path: string): Promise<string> {
 
 export function isOverdue(todo: Todo, now?: Date): boolean {
   if (todo.completed) return false;
-  if (!now) now = new Date();
+  const ref = now ?? new Date();
   const created = new Date(todo.created_at);
 
   if (todo.category === "today") {
-    return now.toDateString() !== created.toDateString() && now > created;
+    return isAfterDay(ref, created);
   }
   if (todo.category === "this_week") {
-    const endOfWeek = new Date(created);
-    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-    endOfWeek.setHours(23, 59, 59, 999);
-    return now > endOfWeek;
+    return ref > endOfWeek(created);
   }
   return false;
 }
