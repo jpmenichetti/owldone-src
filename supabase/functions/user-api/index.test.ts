@@ -10,6 +10,7 @@ import {
   getLanguage,
   setLanguage,
   getFeatures,
+  listWorkspaceOverdueCounts,
 } from "./index.ts";
 
 const USER_ID = "user-abc";
