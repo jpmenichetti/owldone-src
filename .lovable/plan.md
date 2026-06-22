@@ -1,51 +1,63 @@
 ## Goal
 
-Show a small numeric badge next to each workspace tab indicating the count of overdue tasks in that workspace, so users can spot overdue work in workspaces they aren't currently viewing.
+Let the native iOS proof-of-concept reuse the existing Lovable-managed Google OAuth flow by handing the resulting session back to the app via the `com.owldone.app://login-callback` custom scheme. Lovable Cloud's OAuth broker only allow-lists `https://` redirect targets, so we can't point Google straight at the custom scheme — we bridge through a small web page on the existing `https://owldone.toolkas.cl` origin.
 
-## Definition of "overdue" (server side, UTC)
+No Apple Developer account / Team ID is needed for this approach (Universal Links / AASA are explicitly skipped).
 
-Matches `isOverdue` in `src/hooks/useTodos.ts` but evaluated in UTC (consistent with the new server lifecycle):
-- not completed AND not removed
-- category `today`: created on an earlier UTC day than now
-- category `this_week`: now > Sunday 23:59:59 UTC of the created week
-- `next_week` / `others`: never overdue
+## Flow
 
-## Backend
+```text
+iOS app
+  └─ ASWebAuthenticationSession(
+       url: https://owldone.toolkas.cl/auth/ios-callback,
+       callbackURLScheme: "com.owldone.app")
+            │
+            ▼
+   /auth/ios-callback  ──▶  lovable.auth.signInWithOAuth("google",
+                                { redirect_uri: same /auth/ios-callback URL })
+            │
+   Google → Lovable broker → back to /auth/ios-callback#access_token=...&refresh_token=...
+            │
+   page reads hash, window.location.replace(
+     "com.owldone.app://login-callback#<original hash>")
+            │
+            ▼
+   iOS intercepts the custom scheme, parses tokens,
+   calls supabase.auth.setSession(...)
+```
 
-**`supabase/functions/user-api/index.ts`** — add new action `list_workspace_overdue_counts`:
-- Auth: existing user JWT.
-- Single query: `select workspace_id, category, created_at from todos where user_id = $user and removed = false and completed = false and category in ('today','this_week')`.
-- Group/reduce in TS using inlined UTC `endOfWeek` / `isAfterDay` helpers.
-- Return `{ counts: Record<string, number> }` keyed by workspace_id.
+## Changes
 
-Add Deno tests asserting:
-- Overdue today (yesterday UTC) counted.
-- Same-day today not counted.
-- Overdue this_week (last week UTC) counted.
-- `next_week` and completed items ignored.
+### 1. New route `/auth/ios-callback`
 
-## Frontend
+New page `src/pages/IosAuthCallback.tsx`, registered in `src/App.tsx` as a public route (no auth guard).
 
-1. **New hook** `src/hooks/useWorkspaceOverdueCounts.ts`
-   - `useQuery(["workspace-overdue-counts", userId], …)` calling `user-api` action `list_workspace_overdue_counts`.
-   - Refetch on window focus and every 5 min.
-   - Invalidated by todo mutations: add `queryClient.invalidateQueries({ queryKey: ["workspace-overdue-counts"] })` inside the existing `invalidateAll()` in `useTodos.ts`.
+Behavior on mount:
+1. If `window.location.hash` contains `access_token` (or `error`): build `com.owldone.app://login-callback#<original hash>` and `window.location.replace(...)`. Show a fallback "Return to the OwlDone app" button + the same deep link in case the auto-redirect is blocked by the in-app browser.
+2. Otherwise kick off `lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.href.split("#")[0].split("?")[0] })`. Show a "Signing you in…" spinner.
+3. On `error` in the hash, render the `error_description` plus the same "Return to app" deep link (so iOS can surface the failure).
 
-2. **`src/components/WorkspaceTabs.tsx`**
-   - Consume the hook.
-   - For each workspace tab, if `count > 0` render a small numeric `Badge` (destructive variant, compact: `text-[10px] px-1 py-0 min-w-[1.25rem] h-4 leading-none`) inside the existing button, after the name. **Number only — no "overdue" word.** Hidden when count is 0.
-   - Accessible label: append ` (N overdue)` to the tab's aria-label so screen readers still convey meaning even though the visible badge is just a number.
+### 2. Keep `AuthProvider` out of the way on this route
 
-3. **i18n** — add a single key `workspace.overdueAria` = "{count} overdue" used only for the aria-label (not displayed).
+In `src/hooks/useAuth.tsx`, short-circuit so the provider does nothing on `/auth/ios-callback`:
+- Skip the `tryAutoLogin` branch (otherwise it would re-trigger OAuth with `redirect_uri = window.location.origin` and break the iOS hand-off).
+- Skip writing `owldone_was_signed_in` and the `consumeReturnTo()` redirect — this browser session is throwaway, owned by `ASWebAuthenticationSession`.
+
+Effectively: if `window.location.pathname === "/auth/ios-callback"`, set `loading = false` and return early from the effect.
+
+### 3. iOS side (informational, no code in this repo)
+
+- Register URL scheme `com.owldone.app` in `Info.plist` (`CFBundleURLTypes`).
+- Open `https://owldone.toolkas.cl/auth/ios-callback` with `ASWebAuthenticationSession(url:..., callbackURLScheme: "com.owldone.app")`.
+- In the completion handler, parse `access_token` / `refresh_token` from the returned URL's fragment and call `supabase.auth.setSession(...)` in supabase-swift.
 
 ## Out of scope
 
-- Per-user timezone (UTC consistent with backend lifecycle decision).
-- Overdue badge on the workspace dropdown menu items or on the "+" button.
-- Caching across sessions / push updates — react-query refetch is sufficient.
+- No Apple App Site Association / Universal Links (no Team ID, no paid dev account needed).
+- No Supabase / Lovable Cloud OAuth allowlist changes (not possible from Lovable Cloud anyway).
+- No changes to the existing web `/` sign-in flow.
+- No new translations — bridge page is English-only (it's a transient screen the user barely sees).
 
-## Technical notes
+## Open questions
 
-- One round-trip on app load, cheap query (indexed on user_id).
-- Encapsulated in the existing `user-api` edge function per the project's "backend logic exclusively via Edge Functions" rule.
-- Helpers (`endOfWeekUTC`, `isAfterDayUTC`) already exist in `process-lifecycle-transitions`; duplicate the few lines inside `user-api` rather than cross-import (per edge-function self-containment convention).
+None — ready to implement on approval.

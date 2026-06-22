@@ -10,6 +10,7 @@ import { FeatureAccessProvider } from "@/hooks/useFeatureAccess";
 import { WorkspaceProvider } from "@/hooks/useWorkspaces";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
+import IosAuthCallback from "./pages/IosAuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/admin" element={<Admin />} />
+                  <Route path="/auth/ios-callback" element={<IosAuthCallback />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

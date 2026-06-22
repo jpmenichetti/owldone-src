@@ -54,6 +54,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // The iOS native app uses /auth/ios-callback as a transient bridge page.
+    // It manages its own OAuth and hands the resulting session off to the
+    // app via a custom URL scheme. The shared AuthProvider must stay out of
+    // the way: no auto re-login (which would clobber redirect_uri), no
+    // return-to handling, no localStorage flag writes.
+    if (window.location.pathname === "/auth/ios-callback") {
+      setLoading(false);
+      return;
+    }
+
     let autoLoginAttempted = false;
 
     const tryAutoLogin = async () => {
