@@ -12,6 +12,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Login
     "login.tagline": "Organize your tasks with colorful categories, multimedia notes, and smart lifecycle rules.",
     "login.button": "Sign in with Google",
+    "login.buttonApple": "Sign in with Apple",
     "login.footer": "Your todos are private and synced across devices.",
 
     // Filter
@@ -235,6 +236,7 @@ const translations: Record<Language, Record<string, string>> = {
   es: {
     "login.tagline": "Organiza tus tareas con categorías coloridas, notas multimedia y reglas de ciclo de vida inteligentes.",
     "login.button": "Iniciar sesión con Google",
+    "login.buttonApple": "Iniciar sesión con Apple",
     "login.footer": "Tus tareas son privadas y se sincronizan entre dispositivos.",
     "filter.overdue": "Vencidas",
     "filter.tags": "Etiquetas",
@@ -408,6 +410,7 @@ const translations: Record<Language, Record<string, string>> = {
   fr: {
     "login.tagline": "Organisez vos tâches avec des catégories colorées, des notes multimédias et des règles de cycle de vie intelligentes.",
     "login.button": "Se connecter avec Google",
+    "login.buttonApple": "Se connecter avec Apple",
     "login.footer": "Vos tâches sont privées et synchronisées entre vos appareils.",
     "filter.overdue": "En retard",
     "filter.tags": "Tags",
@@ -581,6 +584,7 @@ const translations: Record<Language, Record<string, string>> = {
   de: {
     "login.tagline": "Organisiere deine Aufgaben mit farbigen Kategorien, Multimedia-Notizen und intelligenten Lebenszyklusregeln.",
     "login.button": "Mit Google anmelden",
+    "login.buttonApple": "Mit Apple anmelden",
     "login.footer": "Deine Aufgaben sind privat und werden geräteübergreifend synchronisiert.",
     "filter.overdue": "Überfällig",
     "filter.tags": "Tags",
