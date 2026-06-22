@@ -46,8 +46,11 @@ const IosAuthCallback = () => {
     // No tokens yet — kick off OAuth with this page as the redirect target.
     const redirectUri =
       window.location.origin + window.location.pathname;
+    const search = new URLSearchParams(window.location.search);
+    const requested = search.get("provider");
+    const provider: "google" | "apple" = requested === "apple" ? "apple" : "google";
     (async () => {
-      const result = await lovable.auth.signInWithOAuth("google", {
+      const result = await lovable.auth.signInWithOAuth(provider, {
         redirect_uri: redirectUri,
       });
       if (result.error) {
@@ -58,7 +61,7 @@ const IosAuthCallback = () => {
         )}`;
         setStatus({ kind: "error", message, deepLink });
       }
-      // If result.redirected, the browser is navigating to Google. Nothing else to do.
+      // If result.redirected, the browser is navigating to the provider. Nothing else to do.
     })();
   }, []);
 
@@ -69,7 +72,7 @@ const IosAuthCallback = () => {
           <>
             <h1 className="text-xl font-semibold">Signing you in…</h1>
             <p className="text-sm text-muted-foreground">
-              Redirecting to Google to authenticate.
+              Redirecting to your identity provider to authenticate.
             </p>
           </>
         )}
