@@ -3,14 +3,11 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
-type OAuthProvider = "google" | "apple";
-
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
-  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -19,16 +16,14 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   signInWithGoogle: async () => {},
-  signInWithApple: async () => {},
   signOut: async () => {},
 });
 
 const RETURN_TO_KEY = "owldone_post_auth_return_to";
-const SIGNED_IN_KEY = "owldone_was_signed_in";
-const LAST_PROVIDER_KEY = "owldone_last_provider";
 
 const stashReturnTo = () => {
   const target = window.location.pathname + window.location.search + window.location.hash;
+  // Only stash if there's actually something to restore beyond "/"
   if (target && target !== "/") {
     try {
       sessionStorage.setItem(RETURN_TO_KEY, target);
@@ -53,16 +48,6 @@ const consumeReturnTo = () => {
   }
 };
 
-const readLastProvider = (): OAuthProvider => {
-  try {
-    const stored = localStorage.getItem(LAST_PROVIDER_KEY);
-    if (stored === "apple" || stored === "google") return stored;
-  } catch {
-    // ignore
-  }
-  return "google";
-};
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -84,10 +69,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const tryAutoLogin = async () => {
       if (autoLoginAttempted) return;
       autoLoginAttempted = true;
-      const wasSignedIn = localStorage.getItem(SIGNED_IN_KEY);
+      const wasSignedIn = localStorage.getItem("owldone_was_signed_in");
       if (wasSignedIn === "true") {
         stashReturnTo();
-        await lovable.auth.signInWithOAuth(readLastProvider(), {
+        await lovable.auth.signInWithOAuth("google", {
           redirect_uri: window.location.origin,
         });
       } else {
@@ -99,7 +84,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        localStorage.setItem(SIGNED_IN_KEY, "true");
+        localStorage.setItem("owldone_was_signed_in", "true");
         consumeReturnTo();
       }
       setLoading(false);
@@ -109,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session) {
-        localStorage.setItem(SIGNED_IN_KEY, "true");
+        localStorage.setItem("owldone_was_signed_in", "true");
         consumeReturnTo();
         setLoading(false);
       } else {
@@ -120,29 +105,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWith = async (provider: OAuthProvider) => {
+  const signInWithGoogle = async () => {
     stashReturnTo();
-    try {
-      localStorage.setItem(LAST_PROVIDER_KEY, provider);
-    } catch {
-      // ignore
-    }
-    await lovable.auth.signInWithOAuth(provider, {
+    await lovable.auth.signInWithOAuth("google", {
       redirect_uri: window.location.origin,
     });
   };
 
-  const signInWithGoogle = () => signInWith("google");
-  const signInWithApple = () => signInWith("apple");
-
   const signOut = async () => {
-    localStorage.removeItem(SIGNED_IN_KEY);
-    localStorage.removeItem(LAST_PROVIDER_KEY);
+    localStorage.removeItem("owldone_was_signed_in");
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signInWithGoogle, signInWithApple, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

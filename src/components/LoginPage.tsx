@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone, Apple } from "lucide-react";
+import { LogIn, LayoutGrid, GripVertical, Tag, FileText, Download, Globe, Clock, ArrowRightLeft, Sparkles, Heart, MessageSquare, Github, Smartphone } from "lucide-react";
 import logo from "@/assets/logo.png";
 import toolkasIcon from "@/assets/toolkas.png";
 import { useI18n } from "@/i18n/I18nContext";
@@ -18,7 +18,7 @@ const featureKeys = [
 
 
 export default function LoginPage() {
-  const { signInWithGoogle, signInWithApple } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const { t } = useI18n();
 
   return (
@@ -39,26 +39,14 @@ export default function LoginPage() {
             <p className="text-lg text-muted-foreground">{t("login.headline")}</p>
           </div>
 
-          <div className="space-y-3">
-            <Button
-              onClick={signInWithGoogle}
-              size="lg"
-              className="w-full gap-3 bg-primary text-primary-foreground text-base py-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
+          <Button
+            onClick={signInWithGoogle}
+            size="lg"
+            className="w-full gap-3 bg-primary text-primary-foreground text-base py-6 rounded-xl shadow-lg hover:shadow-xl transition-all">
 
-              <LogIn className="h-5 w-5" />
-              {t("login.button")}
-            </Button>
-
-            <Button
-              onClick={signInWithApple}
-              size="lg"
-              variant="outline"
-              className="w-full gap-3 text-base py-6 rounded-xl border-2 hover:bg-foreground hover:text-background transition-all">
-
-              <Apple className="h-5 w-5" />
-              {t("login.buttonApple")}
-            </Button>
-          </div>
+            <LogIn className="h-5 w-5" />
+            {t("login.button")}
+          </Button>
 
           <p className="text-sm text-muted-foreground">
             {t("login.footer")}
