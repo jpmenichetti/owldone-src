@@ -54,6 +54,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     enabled: !!user && !featureLoading,
   });
 
+  // Reset active workspace whenever the signed-in user changes — otherwise
+  // a stale id from a previous account leaks into useTodos and the
+  // todos-api edge function returns 403 "Invalid workspace".
+  useEffect(() => {
+    setActiveWorkspaceIdState(null);
+  }, [user?.id]);
+
   // Pick active workspace from localStorage or default
   useEffect(() => {
     const list = workspacesQuery.data;
@@ -65,6 +72,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     } else {
       const def = list.find((w) => w.is_default) ?? list[0];
       setActiveWorkspaceIdState(def.id);
+      try { localStorage.setItem(STORAGE_KEY, def.id); } catch {}
     }
   }, [workspacesQuery.data]);
 
