@@ -43,14 +43,25 @@ const IosAuthCallback = () => {
       return;
     }
 
-    // No tokens yet — kick off OAuth with this page as the redirect target.
-    const redirectUri =
-      window.location.origin + window.location.pathname;
+    // No tokens yet — kick off OAuth. The Lovable broker only allows the
+    // bare origin as redirect_uri, so tokens come back to "/". A flag in
+    // sessionStorage tells the early bootstrap in main.tsx to forward the
+    // hash to the native app instead of letting Supabase consume it.
+    try {
+      sessionStorage.setItem("owldone_ios_oauth_pending", "1");
+    } catch {
+      // ignore storage errors
+    }
     (async () => {
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: redirectUri,
+        redirect_uri: window.location.origin,
       });
       if (result.error) {
+        try {
+          sessionStorage.removeItem("owldone_ios_oauth_pending");
+        } catch {
+          // ignore
+        }
         const message =
           (result.error as { message?: string })?.message ?? "Sign-in failed";
         const deepLink = `${IOS_SCHEME_URL}#error=oauth_failed&error_description=${encodeURIComponent(
