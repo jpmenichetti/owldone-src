@@ -52,9 +52,22 @@ const IosAuthCallback = () => {
     } catch {
       // ignore storage errors
     }
+    // Forward Google-specific OAuth params (e.g. prompt=select_account,
+    // login_hint, hd) from this page's query string into the broker call.
+    const search = new URLSearchParams(window.location.search);
+    const extraParams: Record<string, string> = {};
+    for (const key of ["prompt", "login_hint", "hd"]) {
+      const value = search.get(key);
+      if (value) extraParams[key] = value;
+    }
+    // Default to forcing the account chooser when nothing is specified,
+    // so the iOS app never silently reuses the previous Google account.
+    if (!extraParams.prompt) extraParams.prompt = "select_account";
+
     (async () => {
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
+        extraParams,
       });
       if (result.error) {
         try {
