@@ -232,7 +232,10 @@ export function useTodos(searchText = "") {
       queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
       toast.error(t("todos.error.toggleFailed"));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      recomputeActiveOverdueCount();
+    },
   });
 
   const removeTodo = useMutation({
