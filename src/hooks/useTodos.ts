@@ -394,7 +394,7 @@ export function useTodos(searchText = "") {
 
   const archiveCompleted = useMutation({
     mutationFn: async (ids: string[]) => {
-      await invoke("todos-api", { action: "archive_completed", ids });
+      await invoke("todos-api", wsBody({ action: "archive_completed", ids }));
     },
     onMutate: async (ids) => {
       await queryClient.cancelQueries({ queryKey: ["todos"] });
@@ -408,8 +408,12 @@ export function useTodos(searchText = "") {
       queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
       toast.error(t("todos.error.archiveFailed"));
     },
-    onSettled: invalidateAll,
+    onSettled: () => {
+      invalidateAll();
+      recomputeActiveOverdueCount();
+    },
   });
+
 
   const deleteTag = useMutation({
     mutationFn: async (tag: string) => {
