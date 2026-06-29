@@ -208,6 +208,7 @@ export function useTodos(searchText = "") {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
       queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
       queryClient.invalidateQueries({ queryKey: ["all-tags"] });
+      recomputeActiveOverdueCount();
     },
   });
 
