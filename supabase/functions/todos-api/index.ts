@@ -416,6 +416,9 @@ export async function bulkInsert({ db, userId, params }: Ctx): Promise<Response>
 export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Response> {
   const { ids } = params;
   assertIdList(ids);
+  // Scope to the active workspace so a stale id list from another workspace
+  // can never affect tasks outside it.
+  const workspaceId = await resolveWorkspaceId(db, userId, params.workspace_id);
   const now = new Date().toISOString();
   for (let i = 0; i < ids.length; i += 500) {
     const batch = ids.slice(i, i + 500);
@@ -423,11 +426,13 @@ export async function archiveCompleted({ db, userId, params }: Ctx): Promise<Res
       .from("todos")
       .update({ removed: true, removed_at: now })
       .in("id", batch)
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .eq("workspace_id", workspaceId);
     if (error) throw error;
   }
   return json({ success: true });
 }
+
 
 // Note: lifecycle transitions (auto-archive completed todos, next_week →
 // this_week rollover) are handled by the `process-lifecycle-transitions`
