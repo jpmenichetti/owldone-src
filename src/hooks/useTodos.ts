@@ -347,7 +347,9 @@ export function useTodos(searchText = "") {
     for (const todo of rawTodos) {
       if (!todo.completed && todo.category === "next_week") {
         if (now > endOfWeek(new Date(todo.created_at))) {
-          activeTodos.push({ ...todo, category: "this_week" });
+          // Mirror server cron: reset created_at so the rolled-over task
+          // starts a fresh week and is NOT immediately flagged as overdue.
+          activeTodos.push({ ...todo, category: "this_week", created_at: now.toISOString() });
           continue;
         }
       }
