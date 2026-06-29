@@ -45,6 +45,18 @@ export function useTodos(searchText = "") {
     queryClient.invalidateQueries({ queryKey: ["workspace-overdue-counts"] });
   };
 
+  const recomputeActiveOverdueCount = () => {
+    if (!user?.id || !activeWorkspaceId) return;
+    const todos = queryClient.getQueryData<Todo[]>(["todos", user.id, activeWorkspaceId]);
+    if (!todos) return;
+    const now = getNow();
+    const count = todos.reduce((n, t) => (!t.removed && isOverdue(t, now) ? n + 1 : n), 0);
+    queryClient.setQueryData<Record<string, number>>(
+      ["workspace-overdue-counts", user.id],
+      (prev) => ({ ...(prev ?? {}), [activeWorkspaceId]: count }),
+    );
+  };
+
 
   // Track temp ID → real ID mappings for operations on freshly-created todos
   const idMapRef = useRef<Map<string, string>>(new Map());
@@ -196,6 +208,7 @@ export function useTodos(searchText = "") {
       queryClient.invalidateQueries({ queryKey: ["todos"] });
       queryClient.invalidateQueries({ queryKey: ["archived-todos"] });
       queryClient.invalidateQueries({ queryKey: ["all-tags"] });
+      recomputeActiveOverdueCount();
     },
   });
 
@@ -219,7 +232,10 @@ export function useTodos(searchText = "") {
       queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
       toast.error(t("todos.error.toggleFailed"));
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["todos"] });
+      recomputeActiveOverdueCount();
+    },
   });
 
   const removeTodo = useMutation({
