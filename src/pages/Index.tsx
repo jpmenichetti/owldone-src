@@ -274,6 +274,7 @@ const Index = () => {
               hasMore={hasNextArchivedPage}
               isLoadingMore={isFetchingNextArchivedPage}
               autoOpen={!!debouncedSearchText && archivedCount > 0}
+              isSearching={isArchivedSearching}
             />
           </>
         )}
