@@ -174,7 +174,8 @@ export async function listTodos({ db, userId, params }: Ctx): Promise<Response> 
     .eq("user_id", userId)
     .eq("workspace_id", workspaceId)
     .eq("removed", false)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   if (error) throw error;
 
   const todoIds = todos.map((t: any) => t.id);
@@ -214,7 +215,8 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
       .eq("user_id", userId)
       .eq("workspace_id", workspaceId)
       .eq("removed", true)
-      .order("removed_at", { ascending: false });
+      .order("removed_at", { ascending: false })
+      .order("id", { ascending: false });
     if (error) throw error;
 
     const matched = (data ?? []).filter((todo: any) => {
@@ -239,6 +241,7 @@ export async function listArchived({ db, userId, params }: Ctx): Promise<Respons
     .eq("workspace_id", workspaceId)
     .eq("removed", true)
     .order("removed_at", { ascending: false })
+    .order("id", { ascending: false })
     .range(from, to);
   if (error) throw error;
   return json(await attachImages(db, data ?? []));
