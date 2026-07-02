@@ -182,6 +182,7 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
             <Archive className="h-5 w-5 text-muted-foreground" />
             <h2 className="font-display text-lg font-semibold text-muted-foreground">{t("archive.title")}</h2>
             <span className="text-xs text-muted-foreground bg-background rounded-full px-2 py-0.5">{totalCount ?? todos.length}</span>
+            {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label={t("filter.search")} />}
           </div>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
         </CollapsibleTrigger>
