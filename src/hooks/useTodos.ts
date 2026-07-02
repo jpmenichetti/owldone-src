@@ -87,6 +87,7 @@ export function useTodos(searchText = "") {
       return data.count as number;
     },
     enabled: !!user && !!activeWorkspaceId,
+    placeholderData: (prev) => prev,
   });
 
   const archivedQuery = useInfiniteQuery({
@@ -107,7 +108,9 @@ export function useTodos(searchText = "") {
       return allPages.length;
     },
     enabled: !!user && !!activeWorkspaceId,
+    placeholderData: (prev) => prev,
   });
+
 
   const addTodo = useMutation({
     mutationFn: async ({ text, category, tempId }: { text: string; category: TodoCategory; tempId: string }) => {
