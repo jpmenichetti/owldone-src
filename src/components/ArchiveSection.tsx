@@ -43,7 +43,9 @@ type Props = {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   autoOpen?: boolean;
+  isSearching?: boolean;
 };
+
 
 type DateGroup = {
   label: string;
