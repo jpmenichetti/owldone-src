@@ -89,7 +89,7 @@ function groupByArchiveDate(todos: Todo[], t: (key: string) => string): DateGrou
     .map(([, group]) => group);
 }
 
-export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, onPermanentDelete, onLoadMore, hasMore, isLoadingMore, autoOpen }: Props) {
+export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, onPermanentDelete, onLoadMore, hasMore, isLoadingMore, autoOpen, isSearching }: Props) {
   const [open, setOpen] = useState(false);
   const manualToggleRef = useRef(false);
   const { t } = useI18n();
