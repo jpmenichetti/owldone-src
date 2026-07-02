@@ -1,23 +1,26 @@
 ## Problem
-The per-workspace overdue badge in `WorkspaceTabs` doesn't refresh after task changes (toggle complete, edit category). The `workspace-overdue-counts` query only refetches on a 5-minute interval, on window focus, or full page reload. `toggleComplete` and `updateTodo` in `src/hooks/useTodos.ts` invalidate `["todos"]` but never touch `["workspace-overdue-counts"]`.
 
-Note: new todos cannot be overdue upon creation, so `addTodo` does not need this update.
-
-## Constraint
-Invalidation/refresh must only touch the workspace whose tasks actually changed — not the counts for unrelated workspaces.
+When the search text changes, `useTodos(debouncedSearchText)` re-keys the `archived-todos` and `archived-todos-count` queries. While the new request is in flight, `archivedCount` falls to `0`, and `ArchiveSection` early-returns `null` (`if (visibleCount === 0) return null`), so the whole panel vanishes with no feedback until results arrive.
 
 ## Fix
-The counts query stores a single `Record<workspaceId, number>` under key `["workspace-overdue-counts", userId]`. Instead of invalidating the whole entry (which refetches every workspace), patch only the affected workspace's slot in the cache.
 
-In `src/hooks/useTodos.ts`, after `toggleComplete` and `updateTodo` settle:
+1. **Keep previous data across search changes** in `src/hooks/useTodos.ts`:
+   - Add `placeholderData: (prev) => prev` (react-query v5 equivalent of `keepPreviousData`) to both `archivedCountQuery` and `archivedQuery`.
+   - Expose an `isArchivedSearching` boolean derived from `archivedQuery.isFetching || archivedCountQuery.isFetching` combined with `debouncedSearchText !== searchText` (already tracked via the query state).
 
-1. Read the current todos list cache for `activeWorkspaceId` (these mutations always act on the active workspace).
-2. Recompute the overdue count locally using the existing `isOverdue` helper (`completed === false`, category `today`/`this_week`, evaluated in UTC, matching the backend logic).
-3. `queryClient.setQueryData(["workspace-overdue-counts", user?.id], (prev) => ({ ...(prev ?? {}), [activeWorkspaceId]: newCount }))`.
+2. **Show a busy indicator on the archive header** in `src/components/ArchiveSection.tsx`:
+   - Accept a new optional `isSearching?: boolean` prop.
+   - When `isSearching` is true, render a small `Loader2` spinner next to the archive title (in place of / alongside the count badge).
+   - Also render the section (do not early-return) when `isSearching` is true even if `visibleCount === 0`, so users see the loader instead of a disappearing panel. When the fetch resolves with 0 matches, fall back to the current hidden behavior.
 
-This updates only the affected workspace's badge, leaves every other workspace's cached count untouched, and avoids a network round-trip.
+3. **Wire it up in `src/pages/Index.tsx`**:
+   - Destructure the new `isArchivedSearching` flag from `useTodos`.
+   - Pass it as `isSearching` to `<ArchiveSection />`.
 
-Add a small helper `recomputeActiveOverdueCount()` inside the hook so both mutations share the logic. The existing 5-minute background `refetchInterval` and window-focus refetch in `useWorkspaceOverdueCounts` continue to reconcile any drift across workspaces.
+No backend, translation, or business-logic changes are needed — this is a pure frontend / loading-state fix.
 
-## Out of scope
-No backend or UI changes. The overdue computation in `user-api` and the badge rendering in `WorkspaceTabs` are correct — only client-side cache maintenance is missing.
+## Files touched
+
+- `src/hooks/useTodos.ts` — `placeholderData` on the two archive queries + expose `isArchivedSearching`.
+- `src/components/ArchiveSection.tsx` — new `isSearching` prop, spinner in header, don't hide while searching.
+- `src/pages/Index.tsx` — pass the new prop through.

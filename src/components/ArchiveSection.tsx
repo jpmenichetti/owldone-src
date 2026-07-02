@@ -1,6 +1,6 @@
 import { Todo, CATEGORY_CONFIG, TodoCategory } from "@/hooks/useTodos";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Archive, ChevronDown, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, RotateCcw, Trash2, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,9 @@ type Props = {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   autoOpen?: boolean;
+  isSearching?: boolean;
 };
+
 
 type DateGroup = {
   label: string;
@@ -87,7 +89,7 @@ function groupByArchiveDate(todos: Todo[], t: (key: string) => string): DateGrou
     .map(([, group]) => group);
 }
 
-export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, onPermanentDelete, onLoadMore, hasMore, isLoadingMore, autoOpen }: Props) {
+export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, onPermanentDelete, onLoadMore, hasMore, isLoadingMore, autoOpen, isSearching }: Props) {
   const [open, setOpen] = useState(false);
   const manualToggleRef = useRef(false);
   const { t } = useI18n();
@@ -109,7 +111,8 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
   const [deleteTarget, setDeleteTarget] = useState<{ type: "single"; id: string } | { type: "period"; label: string; ids: string[] } | null>(null);
 
   const visibleCount = totalCount ?? todos.length;
-  if (visibleCount === 0) return null;
+  if (visibleCount === 0 && !isSearching) return null;
+
 
   const groups = groupByArchiveDate(todos, t);
 
@@ -179,6 +182,7 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
             <Archive className="h-5 w-5 text-muted-foreground" />
             <h2 className="font-display text-lg font-semibold text-muted-foreground">{t("archive.title")}</h2>
             <span className="text-xs text-muted-foreground bg-background rounded-full px-2 py-0.5">{totalCount ?? todos.length}</span>
+            {isSearching && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" aria-label={t("filter.search")} />}
           </div>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", open && "rotate-180")} />
         </CollapsibleTrigger>
