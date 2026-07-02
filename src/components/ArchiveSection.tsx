@@ -1,6 +1,6 @@
 import { Todo, CATEGORY_CONFIG, TodoCategory } from "@/hooks/useTodos";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Archive, ChevronDown, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ChevronDown, RotateCcw, Trash2, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
