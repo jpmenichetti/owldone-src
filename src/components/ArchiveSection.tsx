@@ -111,7 +111,8 @@ export default function ArchiveSection({ todos, totalCount, onOpen, onRestore, o
   const [deleteTarget, setDeleteTarget] = useState<{ type: "single"; id: string } | { type: "period"; label: string; ids: string[] } | null>(null);
 
   const visibleCount = totalCount ?? todos.length;
-  if (visibleCount === 0) return null;
+  if (visibleCount === 0 && !isSearching) return null;
+
 
   const groups = groupByArchiveDate(todos, t);
 
