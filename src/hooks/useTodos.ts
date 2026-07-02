@@ -448,6 +448,8 @@ export function useTodos(searchText = "") {
     fetchNextArchivedPage: archivedQuery.fetchNextPage,
     hasNextArchivedPage: !!archivedQuery.hasNextPage,
     isFetchingNextArchivedPage: archivedQuery.isFetchingNextPage,
+    isArchivedSearching: !!searchText && (archivedQuery.isFetching || archivedCountQuery.isFetching),
+
   };
 }
 
