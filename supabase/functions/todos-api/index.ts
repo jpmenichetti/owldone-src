@@ -174,7 +174,8 @@ export async function listTodos({ db, userId, params }: Ctx): Promise<Response> 
     .eq("user_id", userId)
     .eq("workspace_id", workspaceId)
     .eq("removed", false)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
   if (error) throw error;
 
   const todoIds = todos.map((t: any) => t.id);
