@@ -101,6 +101,51 @@ export default function Navbar() {
   const handleRestore = async () => {
     if (!selectedFile) return;
     setIsRestoring(true);
+    // Fields the backend's bulk_insert action accepts. Anything else is dropped.
+    const BULK_FIELDS = [
+      "text", "category", "tags", "notes", "urls",
+      "completed", "completed_at", "removed", "removed_at", "recurrence",
+    ] as const;
+    const pickBulkFields = (t: Record<string, unknown>) => {
+      const out: Record<string, unknown> = {};
+      for (const k of BULK_FIELDS) if (t[k] !== undefined) out[k] = t[k];
+      return out;
+    };
+
+    // Track what we've deleted so we can restore it if a later step fails.
+    const snapshot = new Map<string, Record<string, unknown>[]>();
+    const deletedWorkspaceIds: string[] = [];
+
+    const invoke = async (body: Record<string, unknown>, label: string) => {
+      const { data, error } = await supabase.functions.invoke("todos-api", { body });
+      if (error) {
+        const msg =
+          (error as { context?: { error?: string } })?.context?.error ||
+          (error as Error)?.message ||
+          `${label} failed`;
+        throw new Error(msg);
+      }
+      return data;
+    };
+
+    const rollback = async () => {
+      // Best-effort: re-clear any workspace we touched, then re-insert snapshot rows.
+      for (const wsId of deletedWorkspaceIds) {
+        try {
+          await supabase.functions.invoke("todos-api", {
+            body: { action: "delete_all", workspace_id: wsId },
+          });
+        } catch { /* ignore */ }
+        const rows = snapshot.get(wsId) ?? [];
+        if (rows.length === 0) continue;
+        try {
+          await supabase.functions.invoke("todos-api", {
+            body: { action: "bulk_insert", workspace_id: wsId, todos: rows },
+          });
+        } catch { /* ignore — surface primary error */ }
+      }
+    };
+
     try {
       const { validTodos, skippedCount } = await importCsvFile(selectedFile);
       if (validTodos.length === 0) {
@@ -133,18 +178,47 @@ export default function Navbar() {
       }
       const groups = plan.buildGroups(existing, defaultWs.id);
 
-      // Wipe all of the user's existing workspace data before reinserting.
+      // Snapshot every workspace's current tasks (active + archived) before we
+      // delete anything, so we can roll back on failure.
       for (const ws of existing) {
-        await supabase.functions.invoke("todos-api", {
-          body: { action: "delete_all", workspace_id: ws.id },
-        });
+        const active = (await invoke(
+          { action: "list", workspace_id: ws.id },
+          "snapshot",
+        )) as Todo[] | null ?? [];
+        const archived = (await invoke(
+          {
+            action: "list_archived",
+            workspace_id: ws.id,
+            searchText: "",
+            pageSize: 10000,
+            pageOffset: 0,
+          },
+          "snapshot",
+        )) as Todo[] | null ?? [];
+        snapshot.set(
+          ws.id,
+          [...active, ...archived].map((t) => pickBulkFields(t as unknown as Record<string, unknown>)),
+        );
       }
-      for (const [workspaceId, rows] of groups) {
-        // Strip workspace_name; the backend ignores unknown fields but keep payload small.
-        const payload = rows.map(({ workspace_name: _w, ...rest }) => rest);
-        await supabase.functions.invoke("todos-api", {
-          body: { action: "bulk_insert", workspace_id: workspaceId, todos: payload },
-        });
+
+      // Wipe existing data, tracking what we've cleared so rollback can target it.
+      for (const ws of existing) {
+        await invoke({ action: "delete_all", workspace_id: ws.id }, "delete_all");
+        deletedWorkspaceIds.push(ws.id);
+      }
+
+      // Insert restored rows; if any batch fails we roll back to the snapshot.
+      try {
+        for (const [workspaceId, rows] of groups) {
+          const payload = rows.map(({ workspace_name: _w, ...rest }) => rest);
+          await invoke(
+            { action: "bulk_insert", workspace_id: workspaceId, todos: payload },
+            "bulk_insert",
+          );
+        }
+      } catch (insertErr) {
+        await rollback();
+        throw insertErr;
       }
 
       let msg = t("backup.restoreSuccess").replace("{count}", String(validTodos.length));
