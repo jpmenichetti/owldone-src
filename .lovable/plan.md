@@ -1,26 +1,17 @@
 ## Problem
 
-When the search text changes, `useTodos(debouncedSearchText)` re-keys the `archived-todos` and `archived-todos-count` queries. While the new request is in flight, `archivedCount` falls to `0`, and `ArchiveSection` early-returns `null` (`if (visibleCount === 0) return null`), so the whole panel vanishes with no feedback until results arrive.
+When a card is dragged into another category, the optimistic update moves it correctly, but @dnd-kit's default drop animation flies the `DragOverlay` back to the original draggable's position before disappearing — making it look like the drop was rejected.
 
 ## Fix
 
-1. **Keep previous data across search changes** in `src/hooks/useTodos.ts`:
-   - Add `placeholderData: (prev) => prev` (react-query v5 equivalent of `keepPreviousData`) to both `archivedCountQuery` and `archivedQuery`.
-   - Expose an `isArchivedSearching` boolean derived from `archivedQuery.isFetching || archivedCountQuery.isFetching` combined with `debouncedSearchText !== searchText` (already tracked via the query state).
+In `src/pages/Index.tsx`, change the `DragOverlay` so it does not animate back to the origin when the drop is accepted:
 
-2. **Show a busy indicator on the archive header** in `src/components/ArchiveSection.tsx`:
-   - Accept a new optional `isSearching?: boolean` prop.
-   - When `isSearching` is true, render a small `Loader2` spinner next to the archive title (in place of / alongside the count badge).
-   - Also render the section (do not early-return) when `isSearching` is true even if `visibleCount === 0`, so users see the loader instead of a disappearing panel. When the fetch resolves with 0 matches, fall back to the current hidden behavior.
+- Track the drop outcome from `handleDragEnd` (moved vs. cancelled) in a ref.
+- Pass `dropAnimation={null}` to `DragOverlay` when the card was moved to a different category, so the overlay just fades out in place. Keep a short default animation for cancelled drops (dropped outside any category) so those still snap back as a visual cue.
 
-3. **Wire it up in `src/pages/Index.tsx`**:
-   - Destructure the new `isArchivedSearching` flag from `useTodos`.
-   - Pass it as `isSearching` to `<ArchiveSection />`.
+No changes to `TodoCard`, `CategorySection`, or the mutation logic — this is purely a drag-overlay animation tweak.
 
-No backend, translation, or business-logic changes are needed — this is a pure frontend / loading-state fix.
+## Technical notes
 
-## Files touched
-
-- `src/hooks/useTodos.ts` — `placeholderData` on the two archive queries + expose `isArchivedSearching`.
-- `src/components/ArchiveSection.tsx` — new `isSearching` prop, spinner in header, don't hide while searching.
-- `src/pages/Index.tsx` — pass the new prop through.
+- `dropAnimation` on `DragOverlay` accepts `null` to disable the return-to-origin transition (dnd-kit v6+).
+- The ref approach avoids re-rendering `DndContext` mid-drag; we read the ref inside the `dropAnimation` prop via a small state flip on `onDragEnd`.

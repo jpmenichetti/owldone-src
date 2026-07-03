@@ -130,9 +130,12 @@ const Index = () => {
     setActiveDragTodo(todo || null);
   };
 
+  const dropMovedRef = useRef(false);
+
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragTodo(null);
     const { active, over } = event;
+    dropMovedRef.current = false;
     if (!over) return;
     const todoId = active.id as string;
     const newCategory = over.id as TodoCategory;
@@ -143,6 +146,7 @@ const Index = () => {
     if (newCategory !== "others") {
       updates.created_at = new Date().toISOString();
     }
+    dropMovedRef.current = true;
     updateTodo.mutate({ id: todoId, ...updates } as any);
   };
 
@@ -247,7 +251,7 @@ const Index = () => {
                   />
                 ))}
               </div>
-              <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0" } } }) }}>
+              <DragOverlay dropAnimation={dropMovedRef.current ? null : { sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0" } } }) }}>
                 {activeDragTodo ? (
                   <div className="w-[340px] opacity-90 rotate-1 scale-[1.02]">
                     <TodoCard
