@@ -11,7 +11,9 @@ import { WorkspaceProvider } from "@/hooks/useWorkspaces";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import IosAuthCallback from "./pages/IosAuthCallback";
+import OAuthConsent from "./pages/OAuthConsent";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -30,6 +32,7 @@ const App = () => (
                   <Route path="/" element={<Index />} />
                   <Route path="/admin" element={<Admin />} />
                   <Route path="/auth/ios-callback" element={<IosAuthCallback />} />
+                  <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
