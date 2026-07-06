@@ -346,20 +346,12 @@ export async function listAllTags({ db, userId }: Ctx): Promise<Response> {
   return json({ tags: Array.from(set).sort() });
 }
 
-// ----- Overdue counts per workspace (UTC) -----
-// Mirrors `isOverdue` in src/hooks/useTodos.ts, but evaluated in UTC, consistent
-// with the server-side lifecycle cron.
-function endOfWeekUTC(date: Date): Date {
-  const eow = new Date(date);
-  const daysUntilSunday = (7 - eow.getUTCDay()) % 7;
-  eow.setUTCDate(eow.getUTCDate() + daysUntilSunday);
-  eow.setUTCHours(23, 59, 59, 999);
-  return eow;
-}
-function isAfterDayUTC(now: Date, then: Date): boolean {
-  return now.toISOString().slice(0, 10) !== then.toISOString().slice(0, 10) && now > then;
-}
-
+// ----- Overdue candidate rows per workspace -----
+// Return raw rows (workspace_id, category, created_at) for active, non-completed
+// today/this_week todos. The client computes the actual overdue counts with the
+// same `isOverdue` rule used to color the cards, so the workspace badge always
+// matches the cards' visual state (which is evaluated in the browser's local
+// timezone — something the server can't reproduce here).
 export async function listWorkspaceOverdueCounts({ db, userId }: Ctx): Promise<Response> {
   const { data, error } = await db
     .from("todos")
@@ -370,18 +362,10 @@ export async function listWorkspaceOverdueCounts({ db, userId }: Ctx): Promise<R
     .in("category", ["today", "this_week"]);
   if (error) throw error;
 
-  const now = new Date();
-  const counts: Record<string, number> = {};
-  for (const row of data ?? []) {
-    if (!row.workspace_id) continue;
-    const created = new Date(row.created_at);
-    let overdue = false;
-    if (row.category === "today") overdue = isAfterDayUTC(now, created);
-    else if (row.category === "this_week") overdue = now > endOfWeekUTC(created);
-    if (overdue) counts[row.workspace_id] = (counts[row.workspace_id] ?? 0) + 1;
-  }
-  return json({ counts });
+  const rows = (data ?? []).filter((r: { workspace_id: string | null }) => !!r.workspace_id);
+  return json({ rows });
 }
+
 
 // ============================================================
 // Action registry
