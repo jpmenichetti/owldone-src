@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://plygdadnsjdmwqdhntad.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "owldone-mcp",
+      "version": "0.1.0",
+      "title": "OwlDone"
+    },
+    "tools": [
+      {
+        "name": "list_workspaces",
+        "title": "List workspaces",
+        "description": "List the signed-in user's workspaces.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_todos",
+        "title": "List todos",
+        "description": "List the signed-in user's active todos. Optionally filter by category (today, this_week, next_week, others) and/or workspace_id.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "enum": [
+                "today",
+                "this_week",
+                "next_week",
+                "others"
+              ],
+              "description": "Filter to a single category."
+            },
+            "workspace_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Restrict to a workspace."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_todo",
+        "title": "Create todo",
+        "description": "Create a new todo for the signed-in user. If workspace_id is omitted, the user's default workspace is used.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 500,
+              "description": "Task text."
+            },
+            "category": {
+              "type": "string",
+              "enum": [
+                "today",
+                "this_week",
+                "next_week",
+                "others"
+              ],
+              "default": "today",
+              "description": "Category bucket."
+            },
+            "workspace_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target workspace."
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional tags."
+            },
+            "notes": {
+              "type": "string",
+              "description": "Optional notes."
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "complete_todo",
+        "title": "Complete todo",
+        "description": "Mark a todo as complete (or set completed=false to reopen it).",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Todo id."
+            },
+            "completed": {
+              "type": "boolean",
+              "default": true,
+              "description": "Completion state."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
