@@ -138,12 +138,25 @@ export const handleRequest = async (req: Request): Promise<Response> => {
         archived += batch.length;
       }
 
-      // Move next_week → this_week (reset created_at so the new week clock starts)
+      // Move next_week → this_week (reset created_at so the new week clock starts).
+      // Pin the new created_at to NOON UTC of the current UTC day. The cron
+      // typically fires shortly after 00:00 UTC on Monday, which in western
+      // timezones (e.g. UTC-3/-4) still falls on Sunday local — that would
+      // make the client's local endOfWeek(created_at) land on the *previous*
+      // Sunday EOD and the task would immediately look overdue. Noon UTC
+      // lands on the same weekday for every timezone from UTC-11 to UTC+11,
+      // so the rolled task is unambiguously inside the new local week.
+      const noonUtc = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        12, 0, 0, 0,
+      )).toISOString();
       for (let i = 0; i < plan.idsToMoveToThisWeek.length; i += 500) {
         const batch = plan.idsToMoveToThisWeek.slice(i, i + 500);
         const { error: upErr } = await db
           .from("todos")
-          .update({ category: "this_week", created_at: now.toISOString() })
+          .update({ category: "this_week", created_at: noonUtc })
           .in("id", batch);
         if (upErr) throw upErr;
         moved += batch.length;
