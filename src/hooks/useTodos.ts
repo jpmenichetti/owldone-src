@@ -418,6 +418,29 @@ export function useTodos(searchText = "") {
   });
 
 
+  const moveToWorkspace = useMutation({
+    mutationFn: async ({ id, workspace_id }: { id: string; workspace_id: string }) => {
+      const realId = resolveId(id);
+      await invoke("todos-api", { action: "move_workspace", id: realId, workspace_id });
+    },
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ["todos"] });
+      const previous = queryClient.getQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId]);
+      queryClient.setQueryData<Todo[]>(["todos", user?.id, activeWorkspaceId], (old) =>
+        (old ?? []).filter((t) => t.id !== id)
+      );
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(["todos", user?.id, activeWorkspaceId], context?.previous);
+      toast.error(t("todos.error.moveFailed"));
+    },
+    onSettled: () => {
+      invalidateAll();
+      recomputeActiveOverdueCount();
+    },
+  });
+
   const deleteTag = useMutation({
     mutationFn: async (tag: string) => {
       await invoke("todos-api", { action: "delete_tag", tag });
