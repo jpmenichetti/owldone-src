@@ -470,6 +470,36 @@ export async function deleteTag({ db, userId, params }: Ctx): Promise<Response> 
   return json({ success: true, affected });
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function moveWorkspace({ db, userId, params }: Ctx): Promise<Response> {
+  const { id, workspace_id } = params;
+  if (!id || typeof id !== "string") throw { status: 400, message: "Missing id" };
+  if (!workspace_id || typeof workspace_id !== "string" || !UUID_RE.test(workspace_id)) {
+    throw { status: 400, message: "Invalid workspace_id" };
+  }
+  // Validates the target workspace belongs to user.
+  const targetId = await resolveWorkspaceId(db, userId, workspace_id);
+
+  const { data: todo, error: todoErr } = await db
+    .from("todos")
+    .select("id, workspace_id")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (todoErr) throw todoErr;
+  if (!todo) throw { status: 404, message: "Todo not found" };
+  if (todo.workspace_id === targetId) return json({ success: true, unchanged: true });
+
+  const { error } = await db
+    .from("todos")
+    .update({ workspace_id: targetId, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw error;
+  return json({ success: true });
+}
+
 // ============================================================
 // Action registry
 // ============================================================
