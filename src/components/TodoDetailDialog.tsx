@@ -12,6 +12,8 @@ import { useI18n } from "@/i18n/I18nContext";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
 import { Tables } from "@/integrations/supabase/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Workspace } from "@/hooks/useWorkspaces";
 
 type TodoImage = Tables<"todo_images">;
 
@@ -102,6 +104,8 @@ type Props = {
   allTags?: string[];
   recurrenceEnabled?: boolean;
   recurrenceResolved?: boolean;
+  workspaces?: Workspace[];
+  onMoveWorkspace?: (id: string, workspaceId: string) => Promise<void> | void;
 };
 
 function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
@@ -137,7 +141,7 @@ function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = fa
   );
 }
 
-export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, isDeletingImage, deletingImageId, readOnly, allTags = [], recurrenceEnabled = false }: Props) {
+export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUploadImage, onDeleteImage, isUploading, isDeletingImage, deletingImageId, readOnly, allTags = [], recurrenceEnabled = false, workspaces = [], onMoveWorkspace }: Props) {
   const { t } = useI18n();
   const [tagInput, setTagInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
@@ -148,6 +152,7 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ src: string; alt: string } | null>(null);
   const [pendingPreviews, setPendingPreviews] = useState<{ id: string; blobUrl: string; fileName: string }[]>([]);
+  const [isMovingWorkspace, setIsMovingWorkspace] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const isSavingNotes = useRef(false);
@@ -371,6 +376,47 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
           )}
 
           <div className="space-y-5">
+            {/* Workspace */}
+            {!readOnly && onMoveWorkspace && workspaces.length > 1 && (
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {t("detail.workspace")}
+                </label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={todo.workspace_id ?? undefined}
+                    disabled={isMovingWorkspace}
+                    onValueChange={async (nextId) => {
+                      if (!nextId || nextId === todo.workspace_id) return;
+                      const target = workspaces.find((w) => w.id === nextId);
+                      setIsMovingWorkspace(true);
+                      try {
+                        await onMoveWorkspace(todo.id, nextId);
+                        if (target) {
+                          toast.success(t("detail.movedTo").replace("{name}", target.name));
+                        }
+                        onClose();
+                      } finally {
+                        setIsMovingWorkspace(false);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workspaces.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {isMovingWorkspace && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+              </div>
+            )}
+
             {/* Tags */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.tags")}</label>

@@ -31,12 +31,12 @@ const Index = () => {
   useTrackGoogleLanding();
   const { user, loading: authLoading } = useAuth();
   const { showOverdue, selectedTags, toggleOverdue, toggleTag, clearFilters, hasActiveFilters, savingSource, searchText, setSearchText, debouncedSearchText } = useFilters();
-  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, isDeletingImage, deletingImageId, archiveCompleted, deleteTag, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage, isArchivedSearching } = useTodos(debouncedSearchText);
+  const { todos, archived, archivedCount, isLoading, addTodo, updateTodo, toggleComplete, removeTodo, restoreTodo, permanentlyDeleteTodos, uploadImage, deleteImage, isDeletingImage, deletingImageId, archiveCompleted, deleteTag, moveToWorkspace, fetchNextArchivedPage, hasNextArchivedPage, isFetchingNextArchivedPage, isArchivedSearching } = useTodos(debouncedSearchText);
   const { t } = useI18n();
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
-  const { activeWorkspaceId } = useWorkspaces();
+  const { activeWorkspaceId, workspaces } = useWorkspaces();
   const [searchParams, setSearchParams] = useSearchParams();
   const todoIdParam = searchParams.get("todo");
   const dialogReadOnly = searchParams.get("ro") === "1";
@@ -303,6 +303,8 @@ const Index = () => {
         allTags={allTags}
         recurrenceEnabled={hasFeature("recurrence")}
         recurrenceResolved={!featureAccessLoading}
+        workspaces={hasFeature("workspaces") ? workspaces : []}
+        onMoveWorkspace={(id, workspace_id) => moveToWorkspace.mutateAsync({ id, workspace_id })}
       />
     </div>
   );
