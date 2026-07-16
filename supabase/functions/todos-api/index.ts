@@ -517,6 +517,7 @@ const handlers: Record<string, Handler> = {
   bulk_insert: bulkInsert,
   archive_completed: archiveCompleted,
   delete_tag: deleteTag,
+  move_workspace: moveWorkspace,
 
 };
 
