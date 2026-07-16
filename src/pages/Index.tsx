@@ -303,6 +303,8 @@ const Index = () => {
         allTags={allTags}
         recurrenceEnabled={hasFeature("recurrence")}
         recurrenceResolved={!featureAccessLoading}
+        workspaces={hasFeature("workspaces") ? workspaces : []}
+        onMoveWorkspace={(id, workspace_id) => moveToWorkspace.mutateAsync({ id, workspace_id })}
       />
     </div>
   );
