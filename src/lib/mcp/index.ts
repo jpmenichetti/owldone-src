@@ -2,6 +2,7 @@ import { auth, defineMcp } from "@lovable.dev/mcp-js";
 import listTodos from "./tools/list-todos";
 import listOverdueTodos from "./tools/list-overdue-todos";
 import createTodo from "./tools/create-todo";
+import updateTodo from "./tools/update-todo";
 import completeTodo from "./tools/complete-todo";
 import listWorkspaces from "./tools/list-workspaces";
 
