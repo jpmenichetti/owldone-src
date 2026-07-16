@@ -12,6 +12,8 @@ import { useI18n } from "@/i18n/I18nContext";
 import { cn } from "@/lib/utils";
 import { tagColor } from "@/lib/tagColors";
 import { Tables } from "@/integrations/supabase/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Workspace } from "@/hooks/useWorkspaces";
 
 type TodoImage = Tables<"todo_images">;
 
