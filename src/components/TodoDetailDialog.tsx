@@ -376,47 +376,6 @@ export default function TodoDetailDialog({ todo, open, onClose, onUpdate, onUplo
           )}
 
           <div className="space-y-5">
-            {/* Workspace */}
-            {!readOnly && onMoveWorkspace && workspaces.length > 1 && (
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {t("detail.workspace")}
-                </label>
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={todo.workspace_id ?? undefined}
-                    disabled={isMovingWorkspace}
-                    onValueChange={async (nextId) => {
-                      if (!nextId || nextId === todo.workspace_id) return;
-                      const target = workspaces.find((w) => w.id === nextId);
-                      setIsMovingWorkspace(true);
-                      try {
-                        await onMoveWorkspace(todo.id, nextId);
-                        if (target) {
-                          toast.success(t("detail.movedTo").replace("{name}", target.name));
-                        }
-                        onClose();
-                      } finally {
-                        setIsMovingWorkspace(false);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workspaces.map((w) => (
-                        <SelectItem key={w.id} value={w.id}>
-                          {w.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {isMovingWorkspace && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                </div>
-              </div>
-            )}
-
             {/* Tags */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.tags")}</label>
