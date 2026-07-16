@@ -36,7 +36,7 @@ const Index = () => {
   const { getNow } = useSimulatedTime();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { hasFeature, loading: featureAccessLoading } = useFeatureAccess();
-  const { activeWorkspaceId } = useWorkspaces();
+  const { activeWorkspaceId, workspaces } = useWorkspaces();
   const [searchParams, setSearchParams] = useSearchParams();
   const todoIdParam = searchParams.get("todo");
   const dialogReadOnly = searchParams.get("ro") === "1";
