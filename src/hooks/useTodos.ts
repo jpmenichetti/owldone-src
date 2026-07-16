@@ -468,6 +468,7 @@ export function useTodos(searchText = "") {
     bulkInsertTodos,
     archiveCompleted,
     deleteTag,
+    moveToWorkspace,
     fetchNextArchivedPage: archivedQuery.fetchNextPage,
     hasNextArchivedPage: !!archivedQuery.hasNextPage,
     isFetchingNextArchivedPage: archivedQuery.isFetchingNextPage,
