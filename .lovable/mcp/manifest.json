@@ -66,6 +66,33 @@
         "outputSchema": null
       },
       {
+        "name": "list_overdue_todos",
+        "title": "List overdue todos",
+        "description": "List the signed-in user's overdue active todos. A `today` task is overdue when its creation day is strictly before today. A `this_week` task is overdue when the current time is past the end of its creation week (Sunday 23:59:59 local). Other categories are never overdue.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "workspace_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Restrict to a workspace."
+            },
+            "timezone": {
+              "type": "string",
+              "description": "IANA timezone (e.g. 'America/Santiago') used to compute day/week boundaries. Defaults to 'UTC'."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
         "name": "create_todo",
         "title": "Create todo",
         "description": "Create a new todo for the signed-in user. If workspace_id is omitted, the user's default workspace is used.",

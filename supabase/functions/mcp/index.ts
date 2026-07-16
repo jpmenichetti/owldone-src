@@ -43,7 +43,7 @@ var list_todos_default = defineTool({
   }
 });
 
-// src/lib/mcp/tools/create-todo.ts
+// src/lib/mcp/tools/list-overdue-todos.ts
 import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.97.0";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.22.2";
 import { z as z2 } from "npm:zod@^3.25.76";
@@ -53,23 +53,117 @@ function clientFor2(ctx) {
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var create_todo_default = defineTool2({
+function partsInTz(date, timeZone) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short"
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (t) => parts.find((p) => p.type === t)?.value ?? "";
+  const weekdayMap = {
+    Sun: 0,
+    Mon: 1,
+    Tue: 2,
+    Wed: 3,
+    Thu: 4,
+    Fri: 5,
+    Sat: 6
+  };
+  return {
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
+    weekday: weekdayMap[get("weekday")] ?? 0
+  };
+}
+function dayDiff(a, b) {
+  const au = Date.UTC(a.year, a.month - 1, a.day);
+  const bu = Date.UTC(b.year, b.month - 1, b.day);
+  return Math.round((bu - au) / 864e5);
+}
+var list_overdue_todos_default = defineTool2({
+  name: "list_overdue_todos",
+  title: "List overdue todos",
+  description: "List the signed-in user's overdue active todos. A `today` task is overdue when its creation day is strictly before today. A `this_week` task is overdue when the current time is past the end of its creation week (Sunday 23:59:59 local). Other categories are never overdue.",
+  inputSchema: {
+    workspace_id: z2.string().uuid().optional().describe("Restrict to a workspace."),
+    timezone: z2.string().optional().describe(
+      "IANA timezone (e.g. 'America/Santiago') used to compute day/week boundaries. Defaults to 'UTC'."
+    )
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ workspace_id, timezone }, ctx) => {
+    if (!ctx.isAuthenticated()) {
+      return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
+    }
+    const tz = timezone ?? "UTC";
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    } catch {
+      return {
+        content: [{ type: "text", text: `Invalid timezone: ${tz}` }],
+        isError: true
+      };
+    }
+    const supabase = clientFor2(ctx);
+    let query = supabase.from("todos").select("id, text, category, tags, notes, workspace_id, created_at").eq("user_id", ctx.getUserId()).eq("removed", false).eq("completed", false).in("category", ["today", "this_week"]).order("created_at", { ascending: false }).limit(500);
+    if (workspace_id) query = query.eq("workspace_id", workspace_id);
+    const { data, error } = await query;
+    if (error) {
+      return { content: [{ type: "text", text: error.message }], isError: true };
+    }
+    const now = /* @__PURE__ */ new Date();
+    const nowParts = partsInTz(now, tz);
+    const overdue = (data ?? []).filter((t) => {
+      if (!t.created_at) return false;
+      const created = new Date(t.created_at);
+      const cp = partsInTz(created, tz);
+      if (t.category === "today") {
+        return dayDiff(cp, nowParts) > 0;
+      }
+      if (t.category === "this_week") {
+        const daysToSunday = cp.weekday === 0 ? 0 : 7 - cp.weekday;
+        return dayDiff(cp, nowParts) > daysToSunday;
+      }
+      return false;
+    });
+    return {
+      content: [{ type: "text", text: JSON.stringify(overdue, null, 2) }],
+      structuredContent: { todos: overdue }
+    };
+  }
+});
+
+// src/lib/mcp/tools/create-todo.ts
+import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.97.0";
+import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z3 } from "npm:zod@^3.25.76";
+function clientFor3(ctx) {
+  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+    auth: { persistSession: false, autoRefreshToken: false }
+  });
+}
+var create_todo_default = defineTool3({
   name: "create_todo",
   title: "Create todo",
   description: "Create a new todo for the signed-in user. If workspace_id is omitted, the user's default workspace is used.",
   inputSchema: {
-    text: z2.string().trim().min(1).max(500).describe("Task text."),
-    category: z2.enum(["today", "this_week", "next_week", "others"]).default("today").describe("Category bucket."),
-    workspace_id: z2.string().uuid().optional().describe("Target workspace."),
-    tags: z2.array(z2.string()).optional().describe("Optional tags."),
-    notes: z2.string().optional().describe("Optional notes.")
+    text: z3.string().trim().min(1).max(500).describe("Task text."),
+    category: z3.enum(["today", "this_week", "next_week", "others"]).default("today").describe("Category bucket."),
+    workspace_id: z3.string().uuid().optional().describe("Target workspace."),
+    tags: z3.array(z3.string()).optional().describe("Optional tags."),
+    notes: z3.string().optional().describe("Optional notes.")
   },
   annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
   handler: async ({ text, category, workspace_id, tags, notes }, ctx) => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = clientFor2(ctx);
+    const supabase = clientFor3(ctx);
     const userId = ctx.getUserId();
     let wsId = workspace_id;
     if (!wsId) {
@@ -99,29 +193,29 @@ var create_todo_default = defineTool2({
 });
 
 // src/lib/mcp/tools/complete-todo.ts
-import { createClient as createClient3 } from "npm:@supabase/supabase-js@^2.97.0";
-import { defineTool as defineTool3 } from "npm:@lovable.dev/mcp-js@0.22.2";
-import { z as z3 } from "npm:zod@^3.25.76";
-function clientFor3(ctx) {
-  return createClient3(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.97.0";
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.22.2";
+import { z as z4 } from "npm:zod@^3.25.76";
+function clientFor4(ctx) {
+  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var complete_todo_default = defineTool3({
+var complete_todo_default = defineTool4({
   name: "complete_todo",
   title: "Complete todo",
   description: "Mark a todo as complete (or set completed=false to reopen it).",
   inputSchema: {
-    id: z3.string().uuid().describe("Todo id."),
-    completed: z3.boolean().default(true).describe("Completion state.")
+    id: z4.string().uuid().describe("Todo id."),
+    completed: z4.boolean().default(true).describe("Completion state.")
   },
   annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
   handler: async ({ id, completed }, ctx) => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = clientFor3(ctx);
+    const supabase = clientFor4(ctx);
     const { data, error } = await supabase.from("todos").update({
       completed,
       completed_at: completed ? (/* @__PURE__ */ new Date()).toISOString() : null
@@ -140,15 +234,15 @@ var complete_todo_default = defineTool3({
 });
 
 // src/lib/mcp/tools/list-workspaces.ts
-import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.97.0";
-import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.22.2";
-function clientFor4(ctx) {
-  return createClient4(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+import { createClient as createClient5 } from "npm:@supabase/supabase-js@^2.97.0";
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.22.2";
+function clientFor5(ctx) {
+  return createClient5(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
 }
-var list_workspaces_default = defineTool4({
+var list_workspaces_default = defineTool5({
   name: "list_workspaces",
   title: "List workspaces",
   description: "List the signed-in user's workspaces.",
@@ -158,7 +252,7 @@ var list_workspaces_default = defineTool4({
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
-    const supabase = clientFor4(ctx);
+    const supabase = clientFor5(ctx);
     const { data, error } = await supabase.from("workspaces").select("id, name, is_default, position").eq("user_id", ctx.getUserId()).order("position", { ascending: true });
     if (error) {
       return { content: [{ type: "text", text: error.message }], isError: true };
@@ -176,12 +270,12 @@ var mcp_default = defineMcp({
   name: "owldone-mcp",
   title: "OwlDone",
   version: "0.1.0",
-  instructions: "Tools for OwlDone, a personal task manager. Use `list_workspaces` to discover workspaces, `list_todos` to read active tasks (optionally filtered by category or workspace), `create_todo` to add new tasks, and `complete_todo` to mark tasks done. Categories are: today, this_week, next_week, others.",
+  instructions: "Tools for OwlDone, a personal task manager. Use `list_workspaces` to discover workspaces, `list_todos` to read active tasks (optionally filtered by category or workspace), `list_overdue_todos` to read tasks that are past due (accepts an optional IANA `timezone` such as 'America/Santiago' \u2014 defaults to UTC), `create_todo` to add new tasks, and `complete_todo` to mark tasks done. Categories are: today, this_week, next_week, others.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
   }),
-  tools: [list_workspaces_default, list_todos_default, create_todo_default, complete_todo_default]
+  tools: [list_workspaces_default, list_todos_default, list_overdue_todos_default, create_todo_default, complete_todo_default]
 });
 
 // lovable-mcp-supabase-entry.ts
