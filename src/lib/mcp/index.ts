@@ -2,6 +2,7 @@ import { auth, defineMcp } from "@lovable.dev/mcp-js";
 import listTodos from "./tools/list-todos";
 import listOverdueTodos from "./tools/list-overdue-todos";
 import createTodo from "./tools/create-todo";
+import updateTodo from "./tools/update-todo";
 import completeTodo from "./tools/complete-todo";
 import listWorkspaces from "./tools/list-workspaces";
 
@@ -15,10 +16,10 @@ export default defineMcp({
   title: "OwlDone",
   version: "0.1.0",
   instructions:
-    "Tools for OwlDone, a personal task manager. Use `list_workspaces` to discover workspaces, `list_todos` to read active tasks (optionally filtered by category or workspace), `list_overdue_todos` to read tasks that are past due (accepts an optional IANA `timezone` such as 'America/Santiago' — defaults to UTC), `create_todo` to add new tasks, and `complete_todo` to mark tasks done. Categories are: today, this_week, next_week, others.",
+    "Tools for OwlDone, a personal task manager. Use `list_workspaces` to discover workspaces, `list_todos` to read active tasks (optionally filtered by category or workspace), `list_overdue_todos` to read tasks that are past due (accepts an optional IANA `timezone` such as 'America/Santiago' — defaults to UTC), `create_todo` to add new tasks, `update_todo` to edit an existing task's title (`text`), description (`notes`), `tags`, or links (`urls`), and `complete_todo` to mark tasks done. Categories are: today, this_week, next_week, others.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
   }),
-  tools: [listWorkspaces, listTodos, listOverdueTodos, createTodo, completeTodo],
+  tools: [listWorkspaces, listTodos, listOverdueTodos, createTodo, updateTodo, completeTodo],
 });
