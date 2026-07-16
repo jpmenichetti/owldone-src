@@ -104,6 +104,8 @@ type Props = {
   allTags?: string[];
   recurrenceEnabled?: boolean;
   recurrenceResolved?: boolean;
+  workspaces?: Workspace[];
+  onMoveWorkspace?: (id: string, workspaceId: string) => Promise<void> | void;
 };
 
 function RecurrenceSection({ todo, onUpdate, readOnly, t, recurrenceEnabled = false }: { todo: Todo; onUpdate: (id: string, updates: Partial<Todo>) => void; readOnly?: boolean; t: (key: string) => string; recurrenceEnabled?: boolean }) {
