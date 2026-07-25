@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { lovable } from "@/integrations/lovable";
+import { IOS_PENDING_KEY } from "@/ios-oauth-handoff";
 
 const IOS_SCHEME_URL = "com.owldone.app://login-callback";
 
@@ -44,11 +45,12 @@ const IosAuthCallback = () => {
     }
 
     // No tokens yet — kick off OAuth. The Lovable broker only allows the
-    // bare origin as redirect_uri, so tokens come back to "/". A flag in
-    // sessionStorage tells the early bootstrap in main.tsx to forward the
-    // hash to the native app instead of letting Supabase consume it.
+    // bare origin as redirect_uri, so tokens come back to "/". A timestamped flag
+    // in localStorage tells the early handoff in main.tsx to forward the hash to
+    // the native app instead of letting Supabase consume it. localStorage (not
+    // sessionStorage) survives the OAuth round-trip inside ASWebAuthenticationSession.
     try {
-      sessionStorage.setItem("owldone_ios_oauth_pending", "1");
+      localStorage.setItem(IOS_PENDING_KEY, String(Date.now()));
     } catch {
       // ignore storage errors
     }
@@ -71,7 +73,7 @@ const IosAuthCallback = () => {
       });
       if (result.error) {
         try {
-          sessionStorage.removeItem("owldone_ios_oauth_pending");
+          localStorage.removeItem(IOS_PENDING_KEY);
         } catch {
           // ignore
         }
