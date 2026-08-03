@@ -38,6 +38,7 @@ import { useSoundEnabled } from "@/hooks/useSoundEnabled";
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const { t } = useI18n();
+  const { soundEnabled, toggleSound } = useSoundEnabled();
   const [isAdmin, setIsAdmin] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
