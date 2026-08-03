@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut, Shield, Download, Upload, Bug, Crown } from "lucide-react";
+import { LogOut, Shield, Download, Upload, Bug, Crown, Volume2, VolumeX } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -32,11 +32,13 @@ import { validateCsvFile, importCsvFile } from "@/lib/importCsv";
 import { planRestore, type BackupWorkspace } from "@/lib/backupRestore";
 import { toast } from "@/hooks/use-toast";
 import type { Todo } from "@/hooks/useTodos";
+import { useSoundEnabled } from "@/hooks/useSoundEnabled";
 
 
 export default function Navbar() {
   const { user, signOut } = useAuth();
   const { t } = useI18n();
+  const { soundEnabled, toggleSound } = useSoundEnabled();
   const [isAdmin, setIsAdmin] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -278,6 +280,22 @@ export default function Navbar() {
               </Button>
             )}
             {isAdmin && <DevTimeTravel />}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSound}
+                    aria-label={soundEnabled ? t("nav.soundOn") : t("nav.soundOff")}
+                    aria-pressed={soundEnabled}
+                  >
+                    {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{soundEnabled ? t("nav.soundOn") : t("nav.soundOff")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <LanguageSelector />
             <input
               ref={fileInputRef}
