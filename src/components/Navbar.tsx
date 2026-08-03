@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut, Shield, Download, Upload, Bug, Crown } from "lucide-react";
+import { LogOut, Shield, Download, Upload, Bug, Crown, Volume2, VolumeX } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
@@ -32,6 +32,7 @@ import { validateCsvFile, importCsvFile } from "@/lib/importCsv";
 import { planRestore, type BackupWorkspace } from "@/lib/backupRestore";
 import { toast } from "@/hooks/use-toast";
 import type { Todo } from "@/hooks/useTodos";
+import { useSoundEnabled } from "@/hooks/useSoundEnabled";
 
 
 export default function Navbar() {
