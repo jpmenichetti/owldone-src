@@ -1,4 +1,26 @@
+const SOUND_PREF_KEY = "owldone_sound_enabled";
+export const SOUND_PREF_EVENT = "owldone:sound-pref-changed";
+
+export function isSoundEnabled(): boolean {
+  try {
+    return localStorage.getItem(SOUND_PREF_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+export function setSoundEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(SOUND_PREF_KEY, enabled ? "true" : "false");
+  } catch {
+    // ignore storage failures
+  }
+  window.dispatchEvent(new Event(SOUND_PREF_EVENT));
+}
+
 export function playCompletionSound() {
+  if (!isSoundEnabled()) return;
+
   const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
   if (!AudioCtx) return;
 
