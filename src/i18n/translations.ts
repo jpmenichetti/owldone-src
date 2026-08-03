@@ -123,6 +123,8 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "No valid rows found in the CSV file.",
     "nav.reportIssue": "Report Issue",
     "nav.signOut": "Sign Out",
+    "nav.soundOn": "Mute sound",
+    "nav.soundOff": "Unmute sound",
     "nav.premiumComingSoon": "Unlock premium features — coming soon",
 
     // Weekly report
@@ -331,6 +333,8 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "No se encontraron filas válidas en el archivo CSV.",
     "nav.reportIssue": "Reportar problema",
     "nav.signOut": "Cerrar sesión",
+    "nav.soundOn": "Silenciar sonido",
+    "nav.soundOff": "Activar sonido",
     "nav.premiumComingSoon": "Desbloquear funciones premium — próximamente",
 
     "report.title": "Reporte semanal",
@@ -507,6 +511,8 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "Aucune ligne valide trouvée dans le fichier CSV.",
     "nav.reportIssue": "Signaler un problème",
     "nav.signOut": "Se déconnecter",
+    "nav.soundOn": "Couper le son",
+    "nav.soundOff": "Activer le son",
     "nav.premiumComingSoon": "Débloquer les fonctionnalités premium — bientôt disponible",
 
     "report.title": "Rapport hebdomadaire",
@@ -683,6 +689,8 @@ const translations: Record<Language, Record<string, string>> = {
     "backup.noValidRows": "Keine gültigen Zeilen in der CSV-Datei gefunden.",
     "nav.reportIssue": "Problem melden",
     "nav.signOut": "Abmelden",
+    "nav.soundOn": "Ton stummschalten",
+    "nav.soundOff": "Ton einschalten",
     "nav.premiumComingSoon": "Premium-Funktionen freischalten — demnächst verfügbar",
 
     "report.title": "Wochenbericht",
