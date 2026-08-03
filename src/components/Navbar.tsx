@@ -280,6 +280,22 @@ export default function Navbar() {
               </Button>
             )}
             {isAdmin && <DevTimeTravel />}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSound}
+                    aria-label={soundEnabled ? t("nav.soundOn") : t("nav.soundOff")}
+                    aria-pressed={soundEnabled}
+                  >
+                    {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{soundEnabled ? t("nav.soundOn") : t("nav.soundOff")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <LanguageSelector />
             <input
               ref={fileInputRef}
